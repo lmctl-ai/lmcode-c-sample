@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     return 4;
   }
   if (argc == 2 && !std::string(argv[1]).compare("--version")) {
-    std::cout << "lmcode-c-sample 0.2.0\n";
+    std::cout << "lmcode-c-sample 0.3.0\n";
     sample_host_destroy(h);
     lmcode_registry_destroy(r);
     return 0;

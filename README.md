@@ -13,7 +13,7 @@ The host contract is the vendored `sample-suite/host.schema.json`: `Shop`,
 `Items`, `Ledger`, and `Money`, `Currency`, all overloads, void methods,
 operator callbacks, error cases, and the complete 72-function standard catalog.
 `sample-suite/sample.dsl.json` is the exact schema used for bytecode binding.
-The suite is pinned to SDK commit `9a33f9bd139518f7ee02fd19d27c3b895c079c38`;
+The suite is pinned to SDK commit `e9a34f2b3280a8862f391dc18d5c45a7ef1605c5`;
 the C SDK archive is vendored under `include/`, `stdlib/`, and `src/lmcode_c.cpp`.
 
 The C side uses opaque registry/context/program handles. Domain callbacks use
@@ -25,7 +25,7 @@ registry call and their object pointers remain valid for the VM run.
 
 Protocol commands are `--version`, `--dsl-schema [--json]`,
 `--dsl-signatures`, and `--dsl FILE`. Program output is one JSON result line;
-CLI/load/run/application errors use exit codes 2/3/4. The suite runs all 66
+CLI/load/run/application errors use exit codes 2/3/4. The suite runs all 77
 canonical programs and diffs exact stdout and exit status.
 
 ## Conversions
@@ -47,7 +47,8 @@ borrowed until the next registry call. Domain objects are owned by `SampleHost`.
 
 Adding a C host function means adding its schema entry and one descriptor in
 `sample_host_create`; no C++ domain code is needed. The canonical suite and
-expected outputs are never regenerated in this port.
+expected outputs are never regenerated in this port. The v2 SDK supplies 171
+standard signatures; the teaching host contributes 45 host signatures.
 
 Implementation map: `src/shop.h` defines the opaque-domain structs and ownership;
 `src/shop.c` registers all host signatures and dispatches C callbacks;
