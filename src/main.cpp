@@ -1,17 +1,11 @@
+#include "bindings.hpp"
 #include "dslvm.hpp"
-#include "sample_bridge.h"
 #include "sample_schema.hpp"
-#include "shop.h"
-#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <locale>
 #include <sstream>
 #include <string>
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-#endif
 static std::string bytes(const char *path) {
   std::ifstream in(path, std::ios::binary);
   if (!in)
@@ -27,95 +21,54 @@ static int usage() {
   return 2;
 }
 int main(int argc, char **argv) {
-#ifdef _WIN32
-  _setmode(_fileno(stdout), _O_BINARY);
-#endif
   std::cout.imbue(std::locale::classic());
-  sample_error e = {NULL, NULL, 0, 0, 0, 0};
-  sample_registry *r = sample_registry_create();
-  if (!r)
-    return 4;
-  SampleHost *h = sample_host_create(r, &e);
-  if (!h) {
-    sample_registry_destroy(r);
-    return 4;
-  }
-  if (argc == 2 && !std::string(argv[1]).compare("--version")) {
+  sample::Host host;
+  if (argc == 2 && std::string(argv[1]) == "--version") {
     std::cout << "lmcode-c-sample 0.3.0\n";
-    sample_host_destroy(h);
-    sample_registry_destroy(r);
     return 0;
   }
-  if ((argc == 2 || (argc == 3 && !std::string(argv[2]).compare("--json"))) &&
-      !std::string(argv[1]).compare("--dsl-schema")) {
+  if ((argc == 2 || (argc == 3 && std::string(argv[2]) == "--json")) &&
+      std::string(argv[1]) == "--dsl-schema") {
     std::cout.write(sample::schema, sizeof(sample::schema) - 1);
-    sample_host_destroy(h);
-    sample_registry_destroy(r);
     return 0;
   }
-  if (argc == 2 && !std::string(argv[1]).compare("--dsl-signatures")) {
-    for (size_t i = 0; i < sample_registry_signature_count(r); i++)
-      std::cout << sample_registry_signature(r, i) << '\n';
-    sample_host_destroy(h);
-    sample_registry_destroy(r);
+  if (argc == 2 && std::string(argv[1]) == "--dsl-signatures") {
+    for (const auto &s : host.registry.signatures())
+      std::cout << s << '\n';
     return 0;
   }
-  if (argc != 3 || std::string(argv[1]) != "--dsl") {
-    sample_host_destroy(h);
-    sample_registry_destroy(r);
+  if (argc != 3 || std::string(argv[1]) != "--dsl")
     return usage();
-  }
   std::string bytecode;
   try {
     bytecode = bytes(argv[2]);
   } catch (...) {
-    sample_error a = {"APP_FAIL", "cannot read sample input", 0, 0, 0, 0};
-    int out = sample_report_error("app", &a);
-    sample_host_destroy(h);
-    sample_registry_destroy(r);
-    return out;
+    return dslvm::report_app_failure("cannot read sample input");
   }
-  sample_program *p = NULL;
   std::string schema(sample::schema, sizeof(sample::schema) - 1);
-  if (sample_program_load(bytecode.data(), bytecode.size(), schema.data(),
-                          schema.size(), r, &p, &e)) {
-    if (e.code && !strcmp(e.code, "LOAD_SCHEMA_MISMATCH"))
-      e.message = "sample schema mismatch";
-    else if (e.code && !strcmp(e.code, "LOAD_UNBOUND"))
-      e.message = "sample import mismatch";
-    else
-      e.message = "invalid sample bytecode";
-    int out = sample_report_error("load", &e);
-    sample_host_destroy(h);
-    sample_registry_destroy(r);
-    return out;
+  dslvm::Program program;
+  try {
+    program = dslvm::Program::load(bytecode, schema, host.registry);
+  } catch (const dslvm::Error &e) {
+    std::string m = e.code == "LOAD_SCHEMA_MISMATCH" ? "sample schema mismatch"
+                    : e.code == "LOAD_UNBOUND"       ? "sample import mismatch"
+                                               : "invalid sample bytecode";
+    return dslvm::report_error("load", dslvm::Error(e.code, m));
   }
-  sample_context *c = sample_context_create();
-  sample_host_context(h, c, &e);
-  int rc = sample_program_run(p, c, &e);
-  if (rc) {
-    int out = sample_report_error("run", &e);
-    sample_program_destroy(p);
-    sample_context_destroy(c);
-    sample_host_destroy(h);
-    sample_registry_destroy(r);
-    return out;
+  auto context = host.context();
+  try {
+    program.run(context, host.registry);
+  } catch (const dslvm::Error &e) {
+    return dslvm::report_error("run", e);
   }
-  if (h->ledger.balance < 0) {
-    sample_error a = {"APP_FAIL", "ledger: negative balance", 0, 0, 0, 0};
-    rc = sample_report_error("app", &a);
-  } else {
-    std::string note = h->ledger.note
-                           ? std::string(h->ledger.note, h->ledger.note_length)
-                           : std::string();
-    std::string result = "{\"balance\": " + std::to_string(h->ledger.balance) +
-                         ", \"entries\": " + std::to_string(h->ledger.entries) +
-                         ", \"note\": " + dslvm::json_escape(note) + "}";
-    rc = sample_report_ok_json(result.c_str());
-  }
-  sample_program_destroy(p);
-  sample_context_destroy(c);
-  sample_host_destroy(h);
-  sample_registry_destroy(r);
-  return rc;
+  if (host.domain.ledger.balance < 0)
+    return dslvm::report_app_failure("ledger: negative balance");
+  std::string note =
+      host.domain.ledger.note
+          ? std::string(host.domain.ledger.note, host.domain.ledger.note_length)
+          : std::string();
+  return dslvm::report_ok(
+      "{\"balance\": " + std::to_string(host.domain.ledger.balance) +
+      ", \"entries\": " + std::to_string(host.domain.ledger.entries) +
+      ", \"note\": " + dslvm::json_escape(note) + "}");
 }
