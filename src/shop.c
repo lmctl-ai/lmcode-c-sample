@@ -9,9 +9,9 @@ typedef struct Desc {
   void *user;
   const char *owner;
 } Desc;
-static void err(lmcode_error *e, const char *code, const char *msg) {
+static void err(sample_error *e, const char *code, const char *msg) {
   if (e)
-    *e = (lmcode_error){code, msg, 0, 0, 0, 0};
+    *e = (sample_error){code, msg, 0, 0, 0, 0};
 }
 static int64_t wrap_add(int64_t a, int64_t b) {
   uint64_t value = (uint64_t)a + (uint64_t)b;
@@ -35,7 +35,7 @@ static SampleMoney *money(SampleHost *h, int64_t cents) {
   h->arena[h->arena_count++] = m;
   return m;
 }
-static SampleMoney *money_ref(void *p, lmcode_error *e) {
+static SampleMoney *money_ref(void *p, sample_error *e) {
   if (!p) {
     err(e, "RUN_HOST", "money: null handle");
     return NULL;
@@ -52,22 +52,22 @@ static int track_desc(SampleHost *h, Desc *d) {
   h->descriptors[h->descriptor_count++] = d;
   return 0;
 }
-static lmcode_value obj(const char *t, void *p) {
-  lmcode_value v = {0};
+static sample_value obj(const char *t, void *p) {
+  sample_value v = {0};
   v.kind = LMCODE_OBJECT;
   v.object = p;
   v.type = t;
   v.type_length = strlen(t);
   return v;
 }
-static lmcode_value str(const char *p, size_t n) {
-  lmcode_value v = {0};
+static sample_value str(const char *p, size_t n) {
+  sample_value v = {0};
   v.kind = LMCODE_STRING;
   v.data = p;
   v.length = n;
   return v;
 }
-static int text(lmcode_value v, char **out, size_t *n) {
+static int text(sample_value v, char **out, size_t *n) {
   if (v.length && !v.data)
     return 1;
   char *p = malloc(v.length + 1);
@@ -81,8 +81,8 @@ static int text(lmcode_value v, char **out, size_t *n) {
 }
 /* Functions are dispatched by the descriptor's name; descriptor user points to
  * Host. */
-static int function_cb(void *u, const lmcode_value *a, size_t n,
-                       lmcode_value *r, lmcode_error *e) {
+static int function_cb(void *u, const sample_value *a, size_t n,
+                       sample_value *r, sample_error *e) {
   Desc *d = (Desc *)u;
   SampleHost *h = d->user;
   const char *x = d->name;
@@ -230,12 +230,12 @@ static int function_cb(void *u, const lmcode_value *a, size_t n,
                       : !strcmp(x, "host_float_list")
                           ? "fn float_list() -> FloatList"
                           : "fn str_map() -> StrMap";
-    lmcode_value out;
-    if (lmcode_registry_call_function(h->registry, sig, NULL, 0, &out, e))
+    sample_value out;
+    if (sample_registry_call_function(h->registry, sig, NULL, 0, &out, e))
       return 1;
-    lmcode_value index = {0}, item = {0}, len = {0};
+    sample_value index = {0}, item = {0}, len = {0};
     index.kind = LMCODE_INT;
-    if (lmcode_registry_call_method(
+    if (sample_registry_call_method(
             h->registry,
             !strcmp(x, "host_str_map")    ? "method StrMap.len() -> int"
             : !strcmp(x, "host_str_list") ? "method StrList.len() -> int"
@@ -246,21 +246,21 @@ static int function_cb(void *u, const lmcode_value *a, size_t n,
     for (int64_t z = 0; z < len.i; z++) {
       index.i = z;
       if (!strcmp(x, "host_str_map")) {
-        lmcode_value key, val; char *key_copy = NULL; size_t key_length = 0;
-        if (lmcode_registry_call_method(h->registry,
+        sample_value key, val; char *key_copy = NULL; size_t key_length = 0;
+        if (sample_registry_call_method(h->registry,
                                         "method StrMap.key_at(int) -> string",
                                         a[0].object, &index, 1, &key, e) ||
             text(key, &key_copy, &key_length) ||
-            lmcode_registry_call_method(h->registry,
+            sample_registry_call_method(h->registry,
                                         "method StrMap.get(string) -> string",
-                                        a[0].object, &(lmcode_value){LMCODE_STRING, 0, 0, 0, key_copy, key_length, NULL, NULL, 0}, 1, &val, e)) {
+                                        a[0].object, &(sample_value){LMCODE_STRING, 0, 0, 0, key_copy, key_length, NULL, NULL, 0}, 1, &val, e)) {
           free(key_copy);
           return 1;
         }
-        lmcode_value key_stable = {0}; key_stable.kind = LMCODE_STRING; key_stable.data = key_copy; key_stable.length = key_length;
-        if (lmcode_registry_call_method(
+        sample_value key_stable = {0}; key_stable.kind = LMCODE_STRING; key_stable.data = key_copy; key_stable.length = key_length;
+        if (sample_registry_call_method(
                 h->registry, "method StrMap.set(string, string) -> StrMap",
-                out.object, (lmcode_value[2]){key_stable, val}, 2, &out, e)) { free(key_copy);
+                out.object, (sample_value[2]){key_stable, val}, 2, &out, e)) { free(key_copy);
           return 1;
         }
         free(key_copy);
@@ -274,9 +274,9 @@ static int function_cb(void *u, const lmcode_value *a, size_t n,
                           : !strcmp(x, "host_int_list")
                               ? "method IntList.add(int) -> IntList"
                               : "method FloatList.add(float) -> FloatList";
-        if (lmcode_registry_call_method(h->registry, at, a[0].object, &index, 1,
+        if (sample_registry_call_method(h->registry, at, a[0].object, &index, 1,
                                         &item, e) ||
-            lmcode_registry_call_method(h->registry, add, out.object, &item, 1,
+            sample_registry_call_method(h->registry, add, out.object, &item, 1,
                                         &out, e))
           return 1;
       }
@@ -285,35 +285,35 @@ static int function_cb(void *u, const lmcode_value *a, size_t n,
       item.kind = LMCODE_STRING;
       item.data = "host";
       item.length = 4;
-      if (lmcode_registry_call_method(h->registry,
+      if (sample_registry_call_method(h->registry,
                                       "method StrList.add(string) -> StrList",
                                       out.object, &item, 1, &out, e))
         return 1;
     } else if (!strcmp(x, "host_int_list")) {
       item.kind = LMCODE_INT;
       item.i = 9;
-      if (lmcode_registry_call_method(h->registry,
+      if (sample_registry_call_method(h->registry,
                                       "method IntList.add(int) -> IntList",
                                       out.object, &item, 1, &out, e))
         return 1;
     } else if (!strcmp(x, "host_float_list")) {
       item.kind = LMCODE_FLOAT;
       item.f = .5;
-      if (lmcode_registry_call_method(
+      if (sample_registry_call_method(
               h->registry, "method FloatList.add(float) -> FloatList",
               out.object, &item, 1, &out, e))
         return 1;
     } else {
-      lmcode_value k = {0}, v = {0};
+      sample_value k = {0}, v = {0};
       k.kind = LMCODE_STRING;
       k.data = "host";
       k.length = 4;
       v.kind = LMCODE_STRING;
       v.data = "yes";
       v.length = 3;
-      if (lmcode_registry_call_method(
+      if (sample_registry_call_method(
               h->registry, "method StrMap.set(string, string) -> StrMap",
-              out.object, (lmcode_value[2]){k, v}, 2, &out, e))
+              out.object, (sample_value[2]){k, v}, 2, &out, e))
         return 1;
     }
     *r = out;
@@ -322,8 +322,8 @@ static int function_cb(void *u, const lmcode_value *a, size_t n,
   err(e, "RUN_HOST", "unknown sample function");
   return 1;
 }
-static int method_cb(void *u, void *self, const lmcode_value *a, size_t n,
-                     lmcode_value *r, lmcode_error *e) {
+static int method_cb(void *u, void *self, const sample_value *a, size_t n,
+                     sample_value *r, sample_error *e) {
   Desc *d = u;
   SampleHost *h = d->user;
   const char *x = d->name;
@@ -458,7 +458,7 @@ static int method_cb(void *u, void *self, const lmcode_value *a, size_t n,
   return 1;
 }
 static int reg_fn(SampleHost *h, const char *n, const char *const *p, size_t c,
-                  const char *ret, lmcode_error *e) {
+                  const char *ret, sample_error *e) {
   Desc *d = malloc(sizeof(*d));
   if (!d)
     return 1;
@@ -466,11 +466,11 @@ static int reg_fn(SampleHost *h, const char *n, const char *const *p, size_t c,
   d->user = h;
   d->owner = NULL;
   if (track_desc(h, d)) { free(d); return 1; }
-  return lmcode_registry_function(h->registry, n, p, c, ret, function_cb, d, e);
+  return sample_registry_function(h->registry, n, p, c, ret, function_cb, d, e);
 }
 static int reg_m(SampleHost *h, const char *t, const char *n,
                  const char *const *p, size_t c, const char *ret,
-                 lmcode_error *e) {
+                 sample_error *e) {
   Desc *d = malloc(sizeof(*d));
   if (!d)
     return 1;
@@ -478,14 +478,14 @@ static int reg_m(SampleHost *h, const char *t, const char *n,
   d->user = h;
   d->owner = t;
   if (track_desc(h, d)) { free(d); return 1; }
-  return lmcode_registry_method(h->registry, t, n, p, c, ret, method_cb, d, e);
+  return sample_registry_method(h->registry, t, n, p, c, ret, method_cb, d, e);
 }
 static void print_sink(void *u, const char *data, size_t n) {
   (void)u;
   fwrite(data, 1, n, stdout);
   fflush(stdout);
 }
-SampleHost *sample_host_create(lmcode_registry *r, lmcode_error *e) {
+SampleHost *sample_host_create(sample_registry *r, sample_error *e) {
   SampleHost *h = calloc(1, sizeof(*h));
   if (!h)
     return NULL;
@@ -499,10 +499,10 @@ SampleHost *sample_host_create(lmcode_registry *r, lmcode_error *e) {
     h->shop.items.values = items;
     h->shop.items.values[h->shop.items.count++] = q;
   }
-  if (lmcode_registry_context(r, "shop", "Shop", e) ||
-      lmcode_registry_context(r, "ledger", "Ledger", e))
+  if (sample_registry_context(r, "shop", "Shop", e) ||
+      sample_registry_context(r, "ledger", "Ledger", e))
     return h;
-  lmcode_registry_register_testing(r, print_sink, NULL, e);
+  sample_registry_register_testing(r, print_sink, NULL, e);
   const char *none[] = {NULL};
   const char *i[] = {"int"};
   const char *f[] = {"float"};
@@ -575,7 +575,7 @@ void sample_host_destroy(SampleHost *h) {
   free(h->ledger.note);
   free(h);
 }
-int sample_host_context(SampleHost *h, lmcode_context *c, lmcode_error *e) {
-  return lmcode_context_set(c, "shop", &h->shop, e) ||
-         lmcode_context_set(c, "ledger", &h->ledger, e);
+int sample_host_context(SampleHost *h, sample_context *c, sample_error *e) {
+  return sample_context_set(c, "shop", &h->shop, e) ||
+         sample_context_set(c, "ledger", &h->ledger, e);
 }

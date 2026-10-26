@@ -53,6 +53,6 @@ standard signatures; the teaching host contributes 45 host signatures.
 Implementation map: `src/shop.h` defines the opaque-domain structs and ownership;
 `src/shop.c` registers all host signatures and dispatches C callbacks;
 `src/main.cpp` implements only CLI discovery, schema loading, VM invocation and
-JSON serialization; `include/lmcode_c.h` is the C boundary; `scripts/sync.py`
+JSON serialization; `src/sample_bridge.h` is the internal C/domain boundary; `scripts/sync.py`
 checks the immutable SDK/suite locks. `test.sh` runs lock verification, the
 native C11/C++17 build, protocol checks, and the exact corpus.

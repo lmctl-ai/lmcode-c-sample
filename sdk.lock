@@ -4,8 +4,6 @@
   "sha256": {
     "LICENSE": "949eb9b711d9b64ae472b87b94916e8427575a75d0d218f6c4cbccf8c48d46f3",
     "include/dslvm.hpp": "7ebae6118b7570cdf2e362269478b11e2547780874b693023a9f21baa7b6e2c9",
-    "include/lmcode_c.h": "a9c5ad91695351e9d936bf0b4aaa8f12e35db95d583542f8b14ceb25efa86136",
-    "src/lmcode_c.cpp": "73191e80092a4a960b01339db738220e3c129a76ced060f314fb494e24248a59",
     "std/README.md": "0a6c7afd9d1f74ef73d48990da7a4f8056da0ef00575da077d0f583a874516a1",
     "std/lmcode-std.docs.json": "412c1c05dace161322603d24b56a0fa74eb84feada642dc741befd13fb12cb3a",
     "std/lmcode-std.schema.json": "296d7f66ff462fef3c3fa1f83c3e8889874d8714ceb303237ffac940a16aaaf8",

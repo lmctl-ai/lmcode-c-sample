@@ -10,16 +10,16 @@ all: $(BUILD)/lmcode-c-sample
 $(BUILD)/sample_schema.hpp: sample-suite/sample.dsl.json scripts/embed-schema.py
 	mkdir -p $(BUILD)
 	python3 scripts/embed-schema.py $< $@
-$(BUILD)/shop.o: src/shop.c src/shop.h include/lmcode_c.h
+$(BUILD)/shop.o: src/shop.c src/shop.h src/sample_bridge.h
 	mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-$(BUILD)/lmcode_c.o: src/lmcode_c.cpp include/lmcode_c.h include/dslvm.hpp $(wildcard stdlib/*.hpp)
+$(BUILD)/sample_bridge.o: src/sample_bridge.cpp src/sample_bridge.h include/dslvm.hpp $(wildcard stdlib/*.hpp)
 	mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-$(BUILD)/main.o: src/main.cpp src/shop.h include/lmcode_c.h include/dslvm.hpp $(BUILD)/sample_schema.hpp
+$(BUILD)/main.o: src/main.cpp src/shop.h src/sample_bridge.h include/dslvm.hpp $(BUILD)/sample_schema.hpp
 	mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-$(BUILD)/lmcode-c-sample: $(BUILD)/main.o $(BUILD)/shop.o $(BUILD)/lmcode_c.o
+$(BUILD)/lmcode-c-sample: $(BUILD)/main.o $(BUILD)/shop.o $(BUILD)/sample_bridge.o
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 test: all
 	bash sample-suite/run-suite.sh "$(abspath $(BUILD)/lmcode-c-sample)"

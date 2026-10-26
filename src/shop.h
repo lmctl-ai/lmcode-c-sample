@@ -1,6 +1,6 @@
 #ifndef SAMPLE_SHOP_H
 #define SAMPLE_SHOP_H
-#include "lmcode_c.h"
+#include "sample_bridge.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -20,7 +20,7 @@ typedef struct SampleLedger {
   size_t note_length;
 } SampleLedger;
 typedef struct SampleHost {
-  lmcode_registry *registry;
+  sample_registry *registry;
   SampleShop shop;
   SampleLedger ledger;
   SampleMoney **arena;
@@ -34,10 +34,10 @@ typedef struct SampleHost {
 #ifdef __cplusplus
 extern "C" {
 #endif
-SampleHost *sample_host_create(lmcode_registry *registry, lmcode_error *error);
+SampleHost *sample_host_create(sample_registry *registry, sample_error *error);
 void sample_host_destroy(SampleHost *host);
-int sample_host_context(SampleHost *host, lmcode_context *context,
-                        lmcode_error *error);
+int sample_host_context(SampleHost *host, sample_context *context,
+                        sample_error *error);
 #ifdef __cplusplus
 }
 #endif
