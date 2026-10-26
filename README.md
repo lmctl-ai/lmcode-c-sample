@@ -37,3 +37,10 @@ typed and are checked by host callbacks.
 Adding a C host function means adding its schema entry and one descriptor in
 `sample_host_create`; no C++ domain code is needed. The canonical suite and
 expected outputs are never regenerated in this port.
+
+Implementation map: `src/shop.h` defines the opaque-domain structs and ownership;
+`src/shop.c` registers all host signatures and dispatches C callbacks;
+`src/main.cpp` implements only CLI discovery, schema loading, VM invocation and
+JSON serialization; `include/lmcode_c.h` is the C boundary; `scripts/sync.py`
+checks the immutable SDK/suite locks. `test.sh` runs lock verification, the
+native C11/C++17 build, protocol checks, and the exact corpus.

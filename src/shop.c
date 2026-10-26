@@ -1,37 +1,537 @@
 #include "shop.h"
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
-typedef struct Desc { const char *name; void *user; const char *owner; } Desc;
-static void err(lmcode_error *e, const char *code, const char *msg) { if (e) *e=(lmcode_error){code,msg,0,0,0,0}; }
-static int64_t wrap_add(int64_t a,int64_t b){return (int64_t)((uint64_t)a+(uint64_t)b);}
-static SampleMoney *money(SampleHost*h,int64_t cents){ if(h->arena_count==h->arena_capacity){size_t n=h->arena_capacity?h->arena_capacity*2:16; SampleMoney**p=realloc(h->arena,n*sizeof(*p));if(!p)return NULL;h->arena=p;h->arena_capacity=n;} SampleMoney*m=malloc(sizeof(*m));if(!m)return NULL;m->cents=cents;h->arena[h->arena_count++]=m;return m; }
-static SampleMoney *money_ref(void*p,lmcode_error*e){if(!p){err(e,"RUN_HOST","money: null handle");return NULL;}return p;}
-static lmcode_value obj(const char*t,void*p){lmcode_value v={0};v.kind=LMCODE_OBJECT;v.object=p;v.type=t;v.type_length=strlen(t);return v;}
-static lmcode_value str(const char*p,size_t n){lmcode_value v={0};v.kind=LMCODE_STRING;v.data=p;v.length=n;return v;}
-static int text(lmcode_value v,char **out,size_t *n){char*p=malloc(v.length+1);if(!p)return 1;memcpy(p,v.data,v.length);p[v.length]=0;*out=p;*n=v.length;return 0;}
-/* Functions are dispatched by the descriptor's name; descriptor user points to Host. */
-static int function_cb(void*u,const lmcode_value*a,size_t n,lmcode_value*r,lmcode_error*e){Desc*d=(Desc*)u;SampleHost*h=d->user;const char*x=d->name; r->kind=LMCODE_VOID;
- if(!strcmp(x,"money")){SampleMoney*m=NULL;if(a[0].kind==LMCODE_INT)m=money(h,a[0].i);else if(a[0].kind==LMCODE_FLOAT){double c=round(a[0].f*100);if(!isfinite(c)||c<-9223372036854775808.0||c>=9223372036854775808.0){err(e,"RUN_HOST","money: amount out of range");return 1;}m=money(h,(int64_t)c);}if(!m){err(e,"RUN_HOST","money: allocation failed");return 1;}*r=obj("Money",m);return 0;}
- if(!strcmp(x,"fee")){r->kind=LMCODE_INT;r->i=wrap_add(a[0].i,5);return 0;}
- if(!strcmp(x,"sample_tmp")){const char*p=getenv("SAMPLE_TMP");if(!p||!*p){err(e,"RUN_HOST","SAMPLE_TMP is required");return 1;}*r=str(p,strlen(p));return 0;}
- if(!strcmp(x,"host_int")){r->kind=LMCODE_INT;r->i=a[0].i;return 0;} if(!strcmp(x,"host_float")){r->kind=LMCODE_FLOAT;r->f=a[0].f;return 0;} if(!strcmp(x,"host_bool")){r->kind=LMCODE_BOOL;r->b=a[0].b;return 0;} if(!strcmp(x,"host_bytes")){*r=str(a[0].data,a[0].length);return 0;} if(!strcmp(x,"host_hex")){static char buf[4096];size_t z=0;for(size_t i=0;i<a[0].length&&z+2<sizeof(buf);i++){static const char*d="0123456789abcdef";unsigned char c=(unsigned char)a[0].data[i];buf[z++]=d[c>>4];buf[z++]=d[c&15];}*r=str(buf,z);return 0;}
- if(!strcmp(x,"host_float_case")){if(a[0].length==2&&!memcmp(a[0].data,"-0",2))r->f=-0.0;else if(a[0].length==3&&!memcmp(a[0].data,"nan",3))r->f=NAN;else if(a[0].length==3&&!memcmp(a[0].data,"inf",3))r->f=INFINITY;else if(a[0].length==4&&!memcmp(a[0].data,"-inf",4))r->f=-INFINITY;else if(a[0].length==5&&!memcmp(a[0].data,"large",5))r->f=1e21;else if(a[0].length==9&&!memcmp(a[0].data,"subnormal",9))r->f=__DBL_DENORM_MIN__;else{err(e,"RUN_HOST","host_float_case: unknown case");return 1;}r->kind=LMCODE_FLOAT;return 0;}
- if(!strcmp(x,"host_echo_money")){*r=a[0];return 0;} if(!strcmp(x,"host_same")){r->kind=LMCODE_BOOL;r->b=a[0].object==a[1].object;return 0;} if(!strcmp(x,"host_null")){*r=obj("Money",NULL);return 0;}if(!strcmp(x,"host_is_null")){r->kind=LMCODE_BOOL;r->b=!a[0].object;return 0;}if(!strcmp(x,"host_wrong")){*r=obj("Items",NULL);return 0;}if(!strcmp(x,"host_void"))return 0;
- if(!strcmp(x,"host_sum")){uint64_t z=0;for(size_t i=0;i<n;i++)z+=(uint64_t)a[i].i;r->kind=LMCODE_INT;r->i=(int64_t)z;return 0;} if(!strncmp(x,"host_long_",10)){r->kind=LMCODE_INT;r->i=a[0].i;return 0;} if(!strcmp(x,"reject")){err(e,"RUN_HOST",a[0].data);return 1;} if(!strcmp(x,"fail")){err(e,"RUN_HOST","stop here");return 1;}
- if(!strcmp(x,"host_str_list")||!strcmp(x,"host_int_list")||!strcmp(x,"host_float_list")||!strcmp(x,"host_str_map")){const char*sig=!strcmp(x,"host_str_list")?"fn str_list() -> StrList":!strcmp(x,"host_int_list")?"fn int_list() -> IntList":!strcmp(x,"host_float_list")?"fn float_list() -> FloatList":"fn str_map() -> StrMap";lmcode_value out;if(lmcode_registry_call_function(h->registry,sig,NULL,0,&out,e))return 1;lmcode_value index={0},item={0},len={0};index.kind=LMCODE_INT;if(lmcode_registry_call_method(h->registry,!strcmp(x,"host_str_map")?"method StrMap.len() -> int":!strcmp(x,"host_str_list")?"method StrList.len() -> int":!strcmp(x,"host_int_list")?"method IntList.len() -> int":"method FloatList.len() -> int",a[0].object,NULL,0,&len,e))return 1;for(int64_t z=0;z<len.i;z++){index.i=z;if(!strcmp(x,"host_str_map")){lmcode_value key,val;if(lmcode_registry_call_method(h->registry,"method StrMap.key_at(int) -> string",a[0].object,&index,1,&key,e)||lmcode_registry_call_method(h->registry,"method StrMap.get(string) -> string",a[0].object,&key,1,&val,e))return 1;if(lmcode_registry_call_method(h->registry,"method StrMap.set(string, string) -> StrMap",out.object,(lmcode_value[2]){key,val},2,&out,e))return 1;}else{const char*at=!strcmp(x,"host_str_list")?"method StrList.at(int) -> string":!strcmp(x,"host_int_list")?"method IntList.at(int) -> int":"method FloatList.at(int) -> float";const char*add=!strcmp(x,"host_str_list")?"method StrList.add(string) -> StrList":!strcmp(x,"host_int_list")?"method IntList.add(int) -> IntList":"method FloatList.add(float) -> FloatList";if(lmcode_registry_call_method(h->registry,at,a[0].object,&index,1,&item,e)||lmcode_registry_call_method(h->registry,add,out.object,&item,1,&out,e))return 1;}}if(!strcmp(x,"host_str_list")){item.kind=LMCODE_STRING;item.data="host";item.length=4;if(lmcode_registry_call_method(h->registry,"method StrList.add(string) -> StrList",out.object,&item,1,&out,e))return 1;}else if(!strcmp(x,"host_int_list")){item.kind=LMCODE_INT;item.i=9;if(lmcode_registry_call_method(h->registry,"method IntList.add(int) -> IntList",out.object,&item,1,&out,e))return 1;}else if(!strcmp(x,"host_float_list")){item.kind=LMCODE_FLOAT;item.f=.5;if(lmcode_registry_call_method(h->registry,"method FloatList.add(float) -> FloatList",out.object,&item,1,&out,e))return 1;}else{lmcode_value k={0},v={0};k.kind=LMCODE_STRING;k.data="host";k.length=4;v.kind=LMCODE_STRING;v.data="yes";v.length=3;if(lmcode_registry_call_method(h->registry,"method StrMap.set(string, string) -> StrMap",out.object,(lmcode_value[2]){k,v},2,&out,e))return 1;}*r=out;return 0;}
- err(e,"RUN_HOST","unknown sample function");return 1; }
-static int method_cb(void*u,void*self,const lmcode_value*a,size_t n,lmcode_value*r,lmcode_error*e){Desc*d=u;SampleHost*h=d->user;const char*x=d->name;r->kind=LMCODE_VOID;
- SampleMoney*m=money_ref(self,e);if(!strcmp(x,"amount")){if(!m)return 1;r->kind=LMCODE_INT;r->i=m->cents;return 0;}if(!strcmp(x,"currency")){if(!m)return 1;*r=str("USD",3);return 0;}if(!strcmp(x,"set")){if(!m)return 1;m->cents=a[0].i;*r=obj("Money",self);return 0;}if(!strcmp(x,"plus")||!strcmp(x,"minus")||!strcmp(x,"times")||!strcmp(x,"neg")){if(!m)return 1;int64_t z=!strcmp(x,"plus")?wrap_add(m->cents,((SampleMoney*)a[0].object)->cents):!strcmp(x,"minus")?(int64_t)((uint64_t)m->cents-(uint64_t)((SampleMoney*)a[0].object)->cents):!strcmp(x,"times")?(int64_t)((uint64_t)m->cents*(uint64_t)a[0].i):(int64_t)(0-(uint64_t)m->cents);SampleMoney*q=money(h,z);if(!q){err(e,"RUN_HOST","money: allocation failed");return 1;}*r=obj("Money",q);return 0;}
- if(!strcmp(x,"items")){*r=obj("Items",&h->shop.items);return 0;}if(!strcmp(x,"total")){int64_t z=0;for(size_t i=0;i<h->shop.items.count;i++)z=wrap_add(z,h->shop.items.values[i]->cents);SampleMoney*q=money(h,z);*r=obj("Money",q);return 0;}if(!strcmp(x,"price")){SampleMoney*q=NULL;if(a[0].kind==LMCODE_INT)q=money(h,a[0].i);else{double c=round(a[0].f*100);q=money(h,(int64_t)c);}*r=obj("Money",q);return 0;}if(!strcmp(x,"label")){*r=str("sample shop",11);return 0;}
- if(!strcmp(x,"len")){if(!strcmp(d->owner,"Items")){r->kind=LMCODE_INT;r->i=(int64_t)((SampleItems*)self)->count;return 0;}}
- if(!strcmp(x,"at")){SampleItems*i=self;if(a[0].i<0||(uint64_t)a[0].i>=i->count){err(e,"RUN_HOST","items: index out of range");return 1;}r->kind=LMCODE_OBJECT;r->object=i->values[a[0].i];r->type="Money";r->type_length=5;return 0;}
- if(!strcmp(x,"record")){SampleLedger*l=self;l->balance=wrap_add(l->balance,((SampleMoney*)a[0].object)->cents);l->entries=wrap_add(l->entries,1);*r=obj("Ledger",self);return 0;}if(!strcmp(x,"balance")){SampleMoney*q=money(h,((SampleLedger*)self)->balance);*r=obj("Money",q);return 0;}if(!strcmp(x,"count")){r->kind=LMCODE_INT;r->i=((SampleLedger*)self)->entries;return 0;}if(!strcmp(x,"note")){if(n){text(a[0],&((SampleLedger*)self)->note,&((SampleLedger*)self)->note_length);return 0;}*r=str(((SampleLedger*)self)->note,((SampleLedger*)self)->note_length);return 0;}if(!strcmp(x,"reject")){err(e,"RUN_HOST",a[0].data);return 1;}
- err(e,"RUN_HOST","unknown sample method");return 1; }
-static int reg_fn(SampleHost*h,const char*n,const char*const*p,size_t c,const char*ret,lmcode_error*e){Desc*d=malloc(sizeof(*d));if(!d)return 1;d->name=n;d->user=h;d->owner=NULL;return lmcode_registry_function(h->registry,n,p,c,ret,function_cb,d,e);}static int reg_m(SampleHost*h,const char*t,const char*n,const char*const*p,size_t c,const char*ret,lmcode_error*e){Desc*d=malloc(sizeof(*d));if(!d)return 1;d->name=n;d->user=h;d->owner=t;return lmcode_registry_method(h->registry,t,n,p,c,ret,method_cb,d,e);}
-static void print_sink(void*u,const char*data,size_t n){(void)u;fwrite(data,1,n,stdout);fflush(stdout);}
-SampleHost *sample_host_create(lmcode_registry*r,lmcode_error*e){SampleHost*h=calloc(1,sizeof(*h));if(!h)return NULL;h->registry=r; for(int64_t z=1;z<=3;z++) { SampleMoney *q=money(h,z*125); h->shop.items.values=realloc(h->shop.items.values,(h->shop.items.count+1)*sizeof(*h->shop.items.values)); h->shop.items.values[h->shop.items.count++]=q; } if(lmcode_registry_context(r,"shop","Shop",e)||lmcode_registry_context(r,"ledger","Ledger",e))return h;lmcode_registry_register_testing(r,print_sink,NULL,e);const char*none[]={NULL};const char*i[]={"int"};const char*f[]={"float"};const char*s[]={"string"};const char*m[]={"Money"};const char*b[]={"bool"};const char*sum[255];for(size_t z=0;z<255;z++)sum[z]="int";reg_fn(h,"money",i,1,"Money",e);reg_fn(h,"money",f,1,"Money",e);reg_fn(h,"fee",i,1,"int",e);reg_fn(h,"sample_tmp",none,0,"string",e);reg_fn(h,"host_int",i,1,"int",e);reg_fn(h,"host_float",f,1,"float",e);reg_fn(h,"host_bool",b,1,"bool",e);reg_fn(h,"host_bytes",s,1,"string",e);reg_fn(h,"host_hex",s,1,"string",e);reg_fn(h,"host_float_case",s,1,"float",e);reg_fn(h,"host_echo_money",m,1,"Money",e);reg_fn(h,"host_same",(const char*[]){"Money","Money"},2,"bool",e);reg_fn(h,"host_null",none,0,"Money",e);reg_fn(h,"host_is_null",m,1,"bool",e);reg_fn(h,"host_wrong",none,0,"Money",e);reg_fn(h,"host_void",none,0,"void",e);reg_fn(h,"host_sum",sum,255,"int",e);reg_fn(h,"host_long_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",i,1,"int",e);reg_fn(h,"host_str_list",(const char*[]){"StrList"},1,"StrList",e);reg_fn(h,"host_int_list",(const char*[]){"IntList"},1,"IntList",e);reg_fn(h,"host_float_list",(const char*[]){"FloatList"},1,"FloatList",e);reg_fn(h,"host_str_map",(const char*[]){"StrMap"},1,"StrMap",e);reg_m(h,"Money","amount",none,0,"int",e);reg_m(h,"Money","currency",none,0,"Currency",e);reg_m(h,"Money","set",i,1,"Money",e);reg_m(h,"Money","plus",m,1,"Money",e);reg_m(h,"Money","minus",m,1,"Money",e);reg_m(h,"Money","times",i,1,"Money",e);reg_m(h,"Money","neg",none,0,"Money",e);reg_m(h,"Items","len",none,0,"int",e);reg_m(h,"Items","at",i,1,"Money",e);reg_m(h,"Shop","items",none,0,"Items",e);reg_m(h,"Shop","total",none,0,"Money",e);reg_m(h,"Shop","price",i,1,"Money",e);reg_m(h,"Shop","price",f,1,"Money",e);reg_m(h,"Shop","currency",none,0,"Currency",e);reg_m(h,"Shop","label",none,0,"string",e);reg_m(h,"Ledger","record",m,1,"Ledger",e);reg_m(h,"Ledger","balance",none,0,"Money",e);reg_m(h,"Ledger","count",none,0,"int",e);reg_m(h,"Ledger","note",s,1,"void",e);reg_m(h,"Ledger","note",none,0,"string",e); reg_m(h,"Ledger","reject",s,1,"void",e); return h;}
-void sample_host_destroy(SampleHost*h){if(!h)return;for(size_t i=0;i<h->arena_count;i++)free(h->arena[i]);free(h->arena);free(h->ledger.note);free(h);}
-int sample_host_context(SampleHost*h,lmcode_context*c,lmcode_error*e){return lmcode_context_set(c,"shop",&h->shop,e)||lmcode_context_set(c,"ledger",&h->ledger,e);}
+typedef struct Desc {
+  const char *name;
+  void *user;
+  const char *owner;
+} Desc;
+static void err(lmcode_error *e, const char *code, const char *msg) {
+  if (e)
+    *e = (lmcode_error){code, msg, 0, 0, 0, 0};
+}
+static int64_t wrap_add(int64_t a, int64_t b) {
+  return (int64_t)((uint64_t)a + (uint64_t)b);
+}
+static SampleMoney *money(SampleHost *h, int64_t cents) {
+  if (h->arena_count == h->arena_capacity) {
+    size_t n = h->arena_capacity ? h->arena_capacity * 2 : 16;
+    SampleMoney **p = realloc(h->arena, n * sizeof(*p));
+    if (!p)
+      return NULL;
+    h->arena = p;
+    h->arena_capacity = n;
+  }
+  SampleMoney *m = malloc(sizeof(*m));
+  if (!m)
+    return NULL;
+  m->cents = cents;
+  h->arena[h->arena_count++] = m;
+  return m;
+}
+static SampleMoney *money_ref(void *p, lmcode_error *e) {
+  if (!p) {
+    err(e, "RUN_HOST", "money: null handle");
+    return NULL;
+  }
+  return p;
+}
+static lmcode_value obj(const char *t, void *p) {
+  lmcode_value v = {0};
+  v.kind = LMCODE_OBJECT;
+  v.object = p;
+  v.type = t;
+  v.type_length = strlen(t);
+  return v;
+}
+static lmcode_value str(const char *p, size_t n) {
+  lmcode_value v = {0};
+  v.kind = LMCODE_STRING;
+  v.data = p;
+  v.length = n;
+  return v;
+}
+static int text(lmcode_value v, char **out, size_t *n) {
+  char *p = malloc(v.length + 1);
+  if (!p)
+    return 1;
+  memcpy(p, v.data, v.length);
+  p[v.length] = 0;
+  *out = p;
+  *n = v.length;
+  return 0;
+}
+/* Functions are dispatched by the descriptor's name; descriptor user points to
+ * Host. */
+static int function_cb(void *u, const lmcode_value *a, size_t n,
+                       lmcode_value *r, lmcode_error *e) {
+  Desc *d = (Desc *)u;
+  SampleHost *h = d->user;
+  const char *x = d->name;
+  r->kind = LMCODE_VOID;
+  if (!strcmp(x, "money")) {
+    SampleMoney *m = NULL;
+    if (a[0].kind == LMCODE_INT)
+      m = money(h, a[0].i);
+    else if (a[0].kind == LMCODE_FLOAT) {
+      double c = round(a[0].f * 100);
+      if (!isfinite(c) || c < -9223372036854775808.0 ||
+          c >= 9223372036854775808.0) {
+        err(e, "RUN_HOST", "money: amount out of range");
+        return 1;
+      }
+      m = money(h, (int64_t)c);
+    }
+    if (!m) {
+      err(e, "RUN_HOST", "money: allocation failed");
+      return 1;
+    }
+    *r = obj("Money", m);
+    return 0;
+  }
+  if (!strcmp(x, "fee")) {
+    r->kind = LMCODE_INT;
+    r->i = wrap_add(a[0].i, 5);
+    return 0;
+  }
+  if (!strcmp(x, "sample_tmp")) {
+    const char *p = getenv("SAMPLE_TMP");
+    if (!p || !*p) {
+      err(e, "RUN_HOST", "SAMPLE_TMP is required");
+      return 1;
+    }
+    *r = str(p, strlen(p));
+    return 0;
+  }
+  if (!strcmp(x, "host_int")) {
+    r->kind = LMCODE_INT;
+    r->i = a[0].i;
+    return 0;
+  }
+  if (!strcmp(x, "host_float")) {
+    r->kind = LMCODE_FLOAT;
+    r->f = a[0].f;
+    return 0;
+  }
+  if (!strcmp(x, "host_bool")) {
+    r->kind = LMCODE_BOOL;
+    r->b = a[0].b;
+    return 0;
+  }
+  if (!strcmp(x, "host_bytes")) {
+    *r = str(a[0].data, a[0].length);
+    return 0;
+  }
+  if (!strcmp(x, "host_hex")) {
+    static char buf[4096];
+    size_t z = 0;
+    for (size_t i = 0; i < a[0].length && z + 2 < sizeof(buf); i++) {
+      static const char *d = "0123456789abcdef";
+      unsigned char c = (unsigned char)a[0].data[i];
+      buf[z++] = d[c >> 4];
+      buf[z++] = d[c & 15];
+    }
+    *r = str(buf, z);
+    return 0;
+  }
+  if (!strcmp(x, "host_float_case")) {
+    if (a[0].length == 2 && !memcmp(a[0].data, "-0", 2))
+      r->f = -0.0;
+    else if (a[0].length == 3 && !memcmp(a[0].data, "nan", 3))
+      r->f = NAN;
+    else if (a[0].length == 3 && !memcmp(a[0].data, "inf", 3))
+      r->f = INFINITY;
+    else if (a[0].length == 4 && !memcmp(a[0].data, "-inf", 4))
+      r->f = -INFINITY;
+    else if (a[0].length == 5 && !memcmp(a[0].data, "large", 5))
+      r->f = 1e21;
+    else if (a[0].length == 9 && !memcmp(a[0].data, "subnormal", 9))
+      r->f = __DBL_DENORM_MIN__;
+    else {
+      err(e, "RUN_HOST", "host_float_case: unknown case");
+      return 1;
+    }
+    r->kind = LMCODE_FLOAT;
+    return 0;
+  }
+  if (!strcmp(x, "host_echo_money")) {
+    *r = a[0];
+    return 0;
+  }
+  if (!strcmp(x, "host_same")) {
+    r->kind = LMCODE_BOOL;
+    r->b = a[0].object == a[1].object;
+    return 0;
+  }
+  if (!strcmp(x, "host_null")) {
+    *r = obj("Money", NULL);
+    return 0;
+  }
+  if (!strcmp(x, "host_is_null")) {
+    r->kind = LMCODE_BOOL;
+    r->b = !a[0].object;
+    return 0;
+  }
+  if (!strcmp(x, "host_wrong")) {
+    *r = obj("Items", NULL);
+    return 0;
+  }
+  if (!strcmp(x, "host_void"))
+    return 0;
+  if (!strcmp(x, "host_sum")) {
+    uint64_t z = 0;
+    for (size_t i = 0; i < n; i++)
+      z += (uint64_t)a[i].i;
+    r->kind = LMCODE_INT;
+    r->i = (int64_t)z;
+    return 0;
+  }
+  if (!strncmp(x, "host_long_", 10)) {
+    r->kind = LMCODE_INT;
+    r->i = a[0].i;
+    return 0;
+  }
+  if (!strcmp(x, "reject")) {
+    err(e, "RUN_HOST", a[0].data);
+    return 1;
+  }
+  if (!strcmp(x, "fail")) {
+    err(e, "RUN_HOST", "stop here");
+    return 1;
+  }
+  if (!strcmp(x, "host_str_list") || !strcmp(x, "host_int_list") ||
+      !strcmp(x, "host_float_list") || !strcmp(x, "host_str_map")) {
+    const char *sig = !strcmp(x, "host_str_list")   ? "fn str_list() -> StrList"
+                      : !strcmp(x, "host_int_list") ? "fn int_list() -> IntList"
+                      : !strcmp(x, "host_float_list")
+                          ? "fn float_list() -> FloatList"
+                          : "fn str_map() -> StrMap";
+    lmcode_value out;
+    if (lmcode_registry_call_function(h->registry, sig, NULL, 0, &out, e))
+      return 1;
+    lmcode_value index = {0}, item = {0}, len = {0};
+    index.kind = LMCODE_INT;
+    if (lmcode_registry_call_method(
+            h->registry,
+            !strcmp(x, "host_str_map")    ? "method StrMap.len() -> int"
+            : !strcmp(x, "host_str_list") ? "method StrList.len() -> int"
+            : !strcmp(x, "host_int_list") ? "method IntList.len() -> int"
+                                          : "method FloatList.len() -> int",
+            a[0].object, NULL, 0, &len, e))
+      return 1;
+    for (int64_t z = 0; z < len.i; z++) {
+      index.i = z;
+      if (!strcmp(x, "host_str_map")) {
+        lmcode_value key, val;
+        if (lmcode_registry_call_method(h->registry,
+                                        "method StrMap.key_at(int) -> string",
+                                        a[0].object, &index, 1, &key, e) ||
+            lmcode_registry_call_method(h->registry,
+                                        "method StrMap.get(string) -> string",
+                                        a[0].object, &key, 1, &val, e))
+          return 1;
+        if (lmcode_registry_call_method(
+                h->registry, "method StrMap.set(string, string) -> StrMap",
+                out.object, (lmcode_value[2]){key, val}, 2, &out, e))
+          return 1;
+      } else {
+        const char *at =
+            !strcmp(x, "host_str_list")   ? "method StrList.at(int) -> string"
+            : !strcmp(x, "host_int_list") ? "method IntList.at(int) -> int"
+                                          : "method FloatList.at(int) -> float";
+        const char *add = !strcmp(x, "host_str_list")
+                              ? "method StrList.add(string) -> StrList"
+                          : !strcmp(x, "host_int_list")
+                              ? "method IntList.add(int) -> IntList"
+                              : "method FloatList.add(float) -> FloatList";
+        if (lmcode_registry_call_method(h->registry, at, a[0].object, &index, 1,
+                                        &item, e) ||
+            lmcode_registry_call_method(h->registry, add, out.object, &item, 1,
+                                        &out, e))
+          return 1;
+      }
+    }
+    if (!strcmp(x, "host_str_list")) {
+      item.kind = LMCODE_STRING;
+      item.data = "host";
+      item.length = 4;
+      if (lmcode_registry_call_method(h->registry,
+                                      "method StrList.add(string) -> StrList",
+                                      out.object, &item, 1, &out, e))
+        return 1;
+    } else if (!strcmp(x, "host_int_list")) {
+      item.kind = LMCODE_INT;
+      item.i = 9;
+      if (lmcode_registry_call_method(h->registry,
+                                      "method IntList.add(int) -> IntList",
+                                      out.object, &item, 1, &out, e))
+        return 1;
+    } else if (!strcmp(x, "host_float_list")) {
+      item.kind = LMCODE_FLOAT;
+      item.f = .5;
+      if (lmcode_registry_call_method(
+              h->registry, "method FloatList.add(float) -> FloatList",
+              out.object, &item, 1, &out, e))
+        return 1;
+    } else {
+      lmcode_value k = {0}, v = {0};
+      k.kind = LMCODE_STRING;
+      k.data = "host";
+      k.length = 4;
+      v.kind = LMCODE_STRING;
+      v.data = "yes";
+      v.length = 3;
+      if (lmcode_registry_call_method(
+              h->registry, "method StrMap.set(string, string) -> StrMap",
+              out.object, (lmcode_value[2]){k, v}, 2, &out, e))
+        return 1;
+    }
+    *r = out;
+    return 0;
+  }
+  err(e, "RUN_HOST", "unknown sample function");
+  return 1;
+}
+static int method_cb(void *u, void *self, const lmcode_value *a, size_t n,
+                     lmcode_value *r, lmcode_error *e) {
+  Desc *d = u;
+  SampleHost *h = d->user;
+  const char *x = d->name;
+  r->kind = LMCODE_VOID;
+  SampleMoney *m = money_ref(self, e);
+  if (!strcmp(x, "amount")) {
+    if (!m)
+      return 1;
+    r->kind = LMCODE_INT;
+    r->i = m->cents;
+    return 0;
+  }
+  if (!strcmp(x, "currency")) {
+    if (!m)
+      return 1;
+    *r = str("USD", 3);
+    return 0;
+  }
+  if (!strcmp(x, "set")) {
+    if (!m)
+      return 1;
+    m->cents = a[0].i;
+    *r = obj("Money", self);
+    return 0;
+  }
+  if (!strcmp(x, "plus") || !strcmp(x, "minus") || !strcmp(x, "times") ||
+      !strcmp(x, "neg")) {
+    if (!m)
+      return 1;
+    int64_t z = !strcmp(x, "plus")
+                    ? wrap_add(m->cents, ((SampleMoney *)a[0].object)->cents)
+                : !strcmp(x, "minus")
+                    ? (int64_t)((uint64_t)m->cents -
+                                (uint64_t)((SampleMoney *)a[0].object)->cents)
+                : !strcmp(x, "times")
+                    ? (int64_t)((uint64_t)m->cents * (uint64_t)a[0].i)
+                    : (int64_t)(0 - (uint64_t)m->cents);
+    SampleMoney *q = money(h, z);
+    if (!q) {
+      err(e, "RUN_HOST", "money: allocation failed");
+      return 1;
+    }
+    *r = obj("Money", q);
+    return 0;
+  }
+  if (!strcmp(x, "items")) {
+    *r = obj("Items", &h->shop.items);
+    return 0;
+  }
+  if (!strcmp(x, "total")) {
+    int64_t z = 0;
+    for (size_t i = 0; i < h->shop.items.count; i++)
+      z = wrap_add(z, h->shop.items.values[i]->cents);
+    SampleMoney *q = money(h, z);
+    *r = obj("Money", q);
+    return 0;
+  }
+  if (!strcmp(x, "price")) {
+    SampleMoney *q = NULL;
+    if (a[0].kind == LMCODE_INT)
+      q = money(h, a[0].i);
+    else {
+      double c = round(a[0].f * 100);
+      q = money(h, (int64_t)c);
+    }
+    *r = obj("Money", q);
+    return 0;
+  }
+  if (!strcmp(x, "label")) {
+    *r = str("sample shop", 11);
+    return 0;
+  }
+  if (!strcmp(x, "len")) {
+    if (!strcmp(d->owner, "Items")) {
+      r->kind = LMCODE_INT;
+      r->i = (int64_t)((SampleItems *)self)->count;
+      return 0;
+    }
+  }
+  if (!strcmp(x, "at")) {
+    SampleItems *i = self;
+    if (a[0].i < 0 || (uint64_t)a[0].i >= i->count) {
+      err(e, "RUN_HOST", "items: index out of range");
+      return 1;
+    }
+    r->kind = LMCODE_OBJECT;
+    r->object = i->values[a[0].i];
+    r->type = "Money";
+    r->type_length = 5;
+    return 0;
+  }
+  if (!strcmp(x, "record")) {
+    SampleLedger *l = self;
+    l->balance = wrap_add(l->balance, ((SampleMoney *)a[0].object)->cents);
+    l->entries = wrap_add(l->entries, 1);
+    *r = obj("Ledger", self);
+    return 0;
+  }
+  if (!strcmp(x, "balance")) {
+    SampleMoney *q = money(h, ((SampleLedger *)self)->balance);
+    *r = obj("Money", q);
+    return 0;
+  }
+  if (!strcmp(x, "count")) {
+    r->kind = LMCODE_INT;
+    r->i = ((SampleLedger *)self)->entries;
+    return 0;
+  }
+  if (!strcmp(x, "note")) {
+    if (n) {
+      text(a[0], &((SampleLedger *)self)->note,
+           &((SampleLedger *)self)->note_length);
+      return 0;
+    }
+    *r = str(((SampleLedger *)self)->note, ((SampleLedger *)self)->note_length);
+    return 0;
+  }
+  if (!strcmp(x, "reject")) {
+    err(e, "RUN_HOST", a[0].data);
+    return 1;
+  }
+  err(e, "RUN_HOST", "unknown sample method");
+  return 1;
+}
+static int reg_fn(SampleHost *h, const char *n, const char *const *p, size_t c,
+                  const char *ret, lmcode_error *e) {
+  Desc *d = malloc(sizeof(*d));
+  if (!d)
+    return 1;
+  d->name = n;
+  d->user = h;
+  d->owner = NULL;
+  return lmcode_registry_function(h->registry, n, p, c, ret, function_cb, d, e);
+}
+static int reg_m(SampleHost *h, const char *t, const char *n,
+                 const char *const *p, size_t c, const char *ret,
+                 lmcode_error *e) {
+  Desc *d = malloc(sizeof(*d));
+  if (!d)
+    return 1;
+  d->name = n;
+  d->user = h;
+  d->owner = t;
+  return lmcode_registry_method(h->registry, t, n, p, c, ret, method_cb, d, e);
+}
+static void print_sink(void *u, const char *data, size_t n) {
+  (void)u;
+  fwrite(data, 1, n, stdout);
+  fflush(stdout);
+}
+SampleHost *sample_host_create(lmcode_registry *r, lmcode_error *e) {
+  SampleHost *h = calloc(1, sizeof(*h));
+  if (!h)
+    return NULL;
+  h->registry = r;
+  for (int64_t z = 1; z <= 3; z++) {
+    SampleMoney *q = money(h, z * 125);
+    h->shop.items.values =
+        realloc(h->shop.items.values,
+                (h->shop.items.count + 1) * sizeof(*h->shop.items.values));
+    h->shop.items.values[h->shop.items.count++] = q;
+  }
+  if (lmcode_registry_context(r, "shop", "Shop", e) ||
+      lmcode_registry_context(r, "ledger", "Ledger", e))
+    return h;
+  lmcode_registry_register_testing(r, print_sink, NULL, e);
+  const char *none[] = {NULL};
+  const char *i[] = {"int"};
+  const char *f[] = {"float"};
+  const char *s[] = {"string"};
+  const char *m[] = {"Money"};
+  const char *b[] = {"bool"};
+  const char *sum[255];
+  for (size_t z = 0; z < 255; z++)
+    sum[z] = "int";
+  reg_fn(h, "money", i, 1, "Money", e);
+  reg_fn(h, "money", f, 1, "Money", e);
+  reg_fn(h, "fee", i, 1, "int", e);
+  reg_fn(h, "sample_tmp", none, 0, "string", e);
+  reg_fn(h, "host_int", i, 1, "int", e);
+  reg_fn(h, "host_float", f, 1, "float", e);
+  reg_fn(h, "host_bool", b, 1, "bool", e);
+  reg_fn(h, "host_bytes", s, 1, "string", e);
+  reg_fn(h, "host_hex", s, 1, "string", e);
+  reg_fn(h, "host_float_case", s, 1, "float", e);
+  reg_fn(h, "host_echo_money", m, 1, "Money", e);
+  reg_fn(h, "host_same", (const char *[]){"Money", "Money"}, 2, "bool", e);
+  reg_fn(h, "host_null", none, 0, "Money", e);
+  reg_fn(h, "host_is_null", m, 1, "bool", e);
+  reg_fn(h, "host_wrong", none, 0, "Money", e);
+  reg_fn(h, "host_void", none, 0, "void", e);
+  reg_fn(h, "host_sum", sum, 255, "int", e);
+  reg_fn(h,
+         "host_long_"
+         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+         i, 1, "int", e);
+  reg_fn(h, "host_str_list", (const char *[]){"StrList"}, 1, "StrList", e);
+  reg_fn(h, "host_int_list", (const char *[]){"IntList"}, 1, "IntList", e);
+  reg_fn(h, "host_float_list", (const char *[]){"FloatList"}, 1, "FloatList",
+         e);
+  reg_fn(h, "host_str_map", (const char *[]){"StrMap"}, 1, "StrMap", e);
+  reg_m(h, "Money", "amount", none, 0, "int", e);
+  reg_m(h, "Money", "currency", none, 0, "Currency", e);
+  reg_m(h, "Money", "set", i, 1, "Money", e);
+  reg_m(h, "Money", "plus", m, 1, "Money", e);
+  reg_m(h, "Money", "minus", m, 1, "Money", e);
+  reg_m(h, "Money", "times", i, 1, "Money", e);
+  reg_m(h, "Money", "neg", none, 0, "Money", e);
+  reg_m(h, "Items", "len", none, 0, "int", e);
+  reg_m(h, "Items", "at", i, 1, "Money", e);
+  reg_m(h, "Shop", "items", none, 0, "Items", e);
+  reg_m(h, "Shop", "total", none, 0, "Money", e);
+  reg_m(h, "Shop", "price", i, 1, "Money", e);
+  reg_m(h, "Shop", "price", f, 1, "Money", e);
+  reg_m(h, "Shop", "currency", none, 0, "Currency", e);
+  reg_m(h, "Shop", "label", none, 0, "string", e);
+  reg_m(h, "Ledger", "record", m, 1, "Ledger", e);
+  reg_m(h, "Ledger", "balance", none, 0, "Money", e);
+  reg_m(h, "Ledger", "count", none, 0, "int", e);
+  reg_m(h, "Ledger", "note", s, 1, "void", e);
+  reg_m(h, "Ledger", "note", none, 0, "string", e);
+  reg_m(h, "Ledger", "reject", s, 1, "void", e);
+  return h;
+}
+void sample_host_destroy(SampleHost *h) {
+  if (!h)
+    return;
+  for (size_t i = 0; i < h->arena_count; i++)
+    free(h->arena[i]);
+  free(h->arena);
+  free(h->ledger.note);
+  free(h);
+}
+int sample_host_context(SampleHost *h, lmcode_context *c, lmcode_error *e) {
+  return lmcode_context_set(c, "shop", &h->shop, e) ||
+         lmcode_context_set(c, "ledger", &h->ledger, e);
+}

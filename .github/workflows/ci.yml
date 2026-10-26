@@ -1,0 +1,50 @@
+name: C sample integration
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      compiler:
+        description: Published lmscript version
+        default: '0.2.420'
+        type: string
+permissions:
+  contents: read
+jobs:
+  test:
+    env:
+      LMSCRIPT_VERSION: ${{ inputs.compiler || '0.2.420' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04, label: linux-x64}
+          - {os: ubuntu-24.04-arm, label: linux-arm64}
+          - {os: macos-15, label: macos-arm64}
+          - {os: macos-15-intel, label: macos-x64}
+          - {os: windows-2022, label: windows-x64}
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.label }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Compiler and Windows native tools
+        run: |
+          npm install --global "@lmctl-ai/lmctl@$LMSCRIPT_VERSION"
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            if ! command -v g++ >/dev/null || ! command -v make >/dev/null; then choco install -y mingw make; fi
+            mkdir -p .ci-bin
+            printf '#!/usr/bin/env bash\nexec python "$@"\n' > .ci-bin/python3
+            chmod +x .ci-bin/python3
+            echo "$PWD/.ci-bin" >> "$GITHUB_PATH"
+          fi
+      - name: Build and run pinned 66-case suite
+        run: ./test.sh
