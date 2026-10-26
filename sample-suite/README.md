@@ -31,7 +31,7 @@ traces. Call arguments are an argv array, not a shell string. Each case has a
    The manifest independently declares expected exits: recording cannot bless an
    unexpected crash/error as success. Normal tests never regenerate expectations.
 5. Run the corpus on at least one other SDK before accepting the oracle.
-   Initial validation: C++ and Go matched all 66 cases exactly.
+   Initial validation: C++ and Go matched all 77 cases exactly.
 6. Commit sources, bytecode, manifest and expectations together. Sync the pinned
    suite into every sample and run every port's CI. `audit.py` parses actual
    bytecode import tables and fails if any canonical std signature is uncovered.
@@ -157,3 +157,8 @@ other actual byte outputs. It prints a program x sample matrix and preserves
 hex-encoded observations and timings in `~/.local/state/lmctl/sample-matrix/`.
 Weekly/manual/path-triggered `.github/workflows/samples.yml` checks all eight public
 repos on Linux; during rollout it intentionally fails until every port is implemented.
+
+
+## Catalog v2 data examples
+
+Programs 101-105 exercise all 99 new container/Json imports; 106-108 pin their runtime traps. Expectations are recorded only from the rebuilt C++ reference. The all-samples matrix reports known released-v1 SDK pins (or exact legacy-only registry surfaces for unpinned Go builds) as SKIP, not PASS; partial/declared-v2 implementations still execute and fail normally. A skipped port does not establish v2 interoperability. Single-host protocol/run-suite checks never skip.

@@ -287,6 +287,52 @@
     ],
     "063-wrong-runtime-handle.lms": [
       "dynamic wrong handle type runtime failure"
+    ],
+    "102-int-containers.lms": [
+      "int stack/queue/PQ",
+      "stable priority ties",
+      "pop order",
+      "clear/empty/len"
+    ],
+    "103-float-containers.lms": [
+      "float stack/queue/PQ",
+      "stable priority ties",
+      "pop order",
+      "clear/empty/len"
+    ],
+    "104-str-containers.lms": [
+      "str stack/queue/PQ",
+      "stable priority ties",
+      "pop order",
+      "clear/empty/len"
+    ],
+    "101-typed-maps.lms": [
+      "typed maps",
+      "overwrite/reinsert order",
+      "all typed-map methods"
+    ],
+    "105-json-navigation.lms": [
+      "immutable Json",
+      "all Json accessors",
+      "lossless token spelling"
+    ],
+    "106-stack-empty-expected-fail.lms": [
+      "stack empty trap"
+    ],
+    "107-pq-priority-expected-fail.lms": [
+      "PQ nonfinite priority trap"
+    ],
+    "108-json-kind-expected-fail.lms": [
+      "Json kind trap"
+    ],
+    "064-money-invalid-float.lms": [
+      "nonfinite Money factory error"
+    ],
+    "065-price-invalid-float.lms": [
+      "nonfinite overloaded price error"
+    ],
+    "066-record-null-money.lms": [
+      "null argument callback error"
     ]
   },
   "canonical_signatures": [
@@ -401,7 +447,13 @@
     "033-map-missing-expected-fail.lms",
     "057-nested-inline-error.lms",
     "062-null-receiver.lms",
-    "063-wrong-runtime-handle.lms"
+    "063-wrong-runtime-handle.lms",
+    "106-stack-empty-expected-fail.lms",
+    "107-pq-priority-expected-fail.lms",
+    "108-json-kind-expected-fail.lms",
+    "064-money-invalid-float.lms",
+    "065-price-invalid-float.lms",
+    "066-record-null-money.lms"
   ],
   "exit_codes": {
     "030-negative-balance-expected-fail.lms": 4
