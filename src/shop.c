@@ -14,7 +14,10 @@ static void err(lmcode_error *e, const char *code, const char *msg) {
     *e = (lmcode_error){code, msg, 0, 0, 0, 0};
 }
 static int64_t wrap_add(int64_t a, int64_t b) {
-  return (int64_t)((uint64_t)a + (uint64_t)b);
+  uint64_t value = (uint64_t)a + (uint64_t)b;
+  return (value & UINT64_C(0x8000000000000000))
+             ? INT64_MIN + (int64_t)(value & UINT64_C(0x7fffffffffffffff))
+             : (int64_t)value;
 }
 static SampleMoney *money(SampleHost *h, int64_t cents) {
   if (h->arena_count == h->arena_capacity) {
@@ -39,6 +42,16 @@ static SampleMoney *money_ref(void *p, lmcode_error *e) {
   }
   return p;
 }
+static int track_desc(SampleHost *h, Desc *d) {
+  if (h->descriptor_count == h->descriptor_capacity) {
+    size_t cap = h->descriptor_capacity ? h->descriptor_capacity * 2 : 32;
+    void **grown = realloc(h->descriptors, cap * sizeof(*grown));
+    if (!grown) return 1;
+    h->descriptors = grown; h->descriptor_capacity = cap;
+  }
+  h->descriptors[h->descriptor_count++] = d;
+  return 0;
+}
 static lmcode_value obj(const char *t, void *p) {
   lmcode_value v = {0};
   v.kind = LMCODE_OBJECT;
@@ -55,6 +68,8 @@ static lmcode_value str(const char *p, size_t n) {
   return v;
 }
 static int text(lmcode_value v, char **out, size_t *n) {
+  if (v.length && !v.data)
+    return 1;
   char *p = malloc(v.length + 1);
   if (!p)
     return 1;
@@ -126,9 +141,15 @@ static int function_cb(void *u, const lmcode_value *a, size_t n,
     return 0;
   }
   if (!strcmp(x, "host_hex")) {
-    static char buf[4096];
+    size_t required = a[0].length * 2;
+    if (required > h->hex_capacity) {
+      char *grown = realloc(h->hex_scratch, required ? required : 1);
+      if (!grown) { err(e, "RUN_HOST", "host_hex: allocation failed"); return 1; }
+      h->hex_scratch = grown; h->hex_capacity = required;
+    }
+    char *buf = h->hex_scratch;
     size_t z = 0;
-    for (size_t i = 0; i < a[0].length && z + 2 < sizeof(buf); i++) {
+    for (size_t i = 0; i < a[0].length; i++) {
       static const char *d = "0123456789abcdef";
       unsigned char c = (unsigned char)a[0].data[i];
       buf[z++] = d[c >> 4];
@@ -225,18 +246,24 @@ static int function_cb(void *u, const lmcode_value *a, size_t n,
     for (int64_t z = 0; z < len.i; z++) {
       index.i = z;
       if (!strcmp(x, "host_str_map")) {
-        lmcode_value key, val;
+        lmcode_value key, val; char *key_copy = NULL; size_t key_length = 0;
         if (lmcode_registry_call_method(h->registry,
                                         "method StrMap.key_at(int) -> string",
                                         a[0].object, &index, 1, &key, e) ||
+            text(key, &key_copy, &key_length) ||
             lmcode_registry_call_method(h->registry,
                                         "method StrMap.get(string) -> string",
-                                        a[0].object, &key, 1, &val, e))
+                                        a[0].object, &(lmcode_value){LMCODE_STRING, 0, 0, 0, key_copy, key_length, NULL, NULL, 0}, 1, &val, e)) {
+          free(key_copy);
           return 1;
+        }
+        lmcode_value key_stable = {0}; key_stable.kind = LMCODE_STRING; key_stable.data = key_copy; key_stable.length = key_length;
         if (lmcode_registry_call_method(
                 h->registry, "method StrMap.set(string, string) -> StrMap",
-                out.object, (lmcode_value[2]){key, val}, 2, &out, e))
+                out.object, (lmcode_value[2]){key_stable, val}, 2, &out, e)) { free(key_copy);
           return 1;
+        }
+        free(key_copy);
       } else {
         const char *at =
             !strcmp(x, "host_str_list")   ? "method StrList.at(int) -> string"
@@ -326,6 +353,8 @@ static int method_cb(void *u, void *self, const lmcode_value *a, size_t n,
       !strcmp(x, "neg")) {
     if (!m)
       return 1;
+    if ((!strcmp(x, "plus") || !strcmp(x, "minus")) && !money_ref(a[0].object, e))
+      return 1;
     int64_t z = !strcmp(x, "plus")
                     ? wrap_add(m->cents, ((SampleMoney *)a[0].object)->cents)
                 : !strcmp(x, "minus")
@@ -360,6 +389,9 @@ static int method_cb(void *u, void *self, const lmcode_value *a, size_t n,
       q = money(h, a[0].i);
     else {
       double c = round(a[0].f * 100);
+      if (!isfinite(c) || c < -9223372036854775808.0 || c >= 9223372036854775808.0) {
+        err(e, "RUN_HOST", "money: amount out of range"); return 1;
+      }
       q = money(h, (int64_t)c);
     }
     *r = obj("Money", q);
@@ -390,6 +422,8 @@ static int method_cb(void *u, void *self, const lmcode_value *a, size_t n,
   }
   if (!strcmp(x, "record")) {
     SampleLedger *l = self;
+    if (!money_ref(a[0].object, e))
+      return 1;
     l->balance = wrap_add(l->balance, ((SampleMoney *)a[0].object)->cents);
     l->entries = wrap_add(l->entries, 1);
     *r = obj("Ledger", self);
@@ -407,8 +441,10 @@ static int method_cb(void *u, void *self, const lmcode_value *a, size_t n,
   }
   if (!strcmp(x, "note")) {
     if (n) {
-      text(a[0], &((SampleLedger *)self)->note,
-           &((SampleLedger *)self)->note_length);
+      char *next = NULL; size_t length = 0;
+      if (text(a[0], &next, &length)) { err(e, "RUN_HOST", "ledger: note allocation failed"); return 1; }
+      free(((SampleLedger *)self)->note);
+      ((SampleLedger *)self)->note = next; ((SampleLedger *)self)->note_length = length;
       return 0;
     }
     *r = str(((SampleLedger *)self)->note, ((SampleLedger *)self)->note_length);
@@ -429,6 +465,7 @@ static int reg_fn(SampleHost *h, const char *n, const char *const *p, size_t c,
   d->name = n;
   d->user = h;
   d->owner = NULL;
+  if (track_desc(h, d)) { free(d); return 1; }
   return lmcode_registry_function(h->registry, n, p, c, ret, function_cb, d, e);
 }
 static int reg_m(SampleHost *h, const char *t, const char *n,
@@ -440,6 +477,7 @@ static int reg_m(SampleHost *h, const char *t, const char *n,
   d->name = n;
   d->user = h;
   d->owner = t;
+  if (track_desc(h, d)) { free(d); return 1; }
   return lmcode_registry_method(h->registry, t, n, p, c, ret, method_cb, d, e);
 }
 static void print_sink(void *u, const char *data, size_t n) {
@@ -454,9 +492,11 @@ SampleHost *sample_host_create(lmcode_registry *r, lmcode_error *e) {
   h->registry = r;
   for (int64_t z = 1; z <= 3; z++) {
     SampleMoney *q = money(h, z * 125);
-    h->shop.items.values =
-        realloc(h->shop.items.values,
-                (h->shop.items.count + 1) * sizeof(*h->shop.items.values));
+    if (!q) { err(e, "RUN_HOST", "money: allocation failed"); sample_host_destroy(h); return NULL; }
+    SampleMoney **items = realloc(h->shop.items.values,
+                                  (h->shop.items.count + 1) * sizeof(*h->shop.items.values));
+    if (!items) { err(e, "RUN_HOST", "items: allocation failed"); sample_host_destroy(h); return NULL; }
+    h->shop.items.values = items;
     h->shop.items.values[h->shop.items.count++] = q;
   }
   if (lmcode_registry_context(r, "shop", "Shop", e) ||
@@ -528,6 +568,10 @@ void sample_host_destroy(SampleHost *h) {
   for (size_t i = 0; i < h->arena_count; i++)
     free(h->arena[i]);
   free(h->arena);
+  free(h->shop.items.values);
+  for (size_t i = 0; i < h->descriptor_count; i++) free(h->descriptors[i]);
+  free(h->descriptors);
+  free(h->hex_scratch);
   free(h->ledger.note);
   free(h);
 }

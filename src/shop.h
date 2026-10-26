@@ -25,6 +25,10 @@ typedef struct SampleHost {
   SampleLedger ledger;
   SampleMoney **arena;
   size_t arena_count, arena_capacity;
+  void **descriptors;
+  size_t descriptor_count, descriptor_capacity;
+  char *hex_scratch;
+  size_t hex_capacity;
 } SampleHost;
 
 #ifdef __cplusplus
