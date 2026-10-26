@@ -80,23 +80,31 @@ static dslvm::Value fn(Host *h, const std::string &n, dslvm::Args &a) {
   }
   if (n == "host_str_list") {
     auto *in = static_cast<dslvm::stdlib::StrList *>(a[0].obj);
-    auto values = in->items; values.push_back("host");
-    return Value::object("StrList", h->registry.std_collections().make_str_list(std::move(values)));
+    auto values = in->items;
+    values.push_back("host");
+    return Value::object("StrList", h->registry.std_collections().make_str_list(
+                                        std::move(values)));
   }
   if (n == "host_int_list") {
     auto *in = static_cast<dslvm::stdlib::IntList *>(a[0].obj);
-    auto values = in->items; values.push_back(9);
-    return Value::object("IntList", h->registry.std_collections().make_int_list(std::move(values)));
+    auto values = in->items;
+    values.push_back(9);
+    return Value::object("IntList", h->registry.std_collections().make_int_list(
+                                        std::move(values)));
   }
   if (n == "host_float_list") {
     auto *in = static_cast<dslvm::stdlib::FloatList *>(a[0].obj);
-    auto values = in->items; values.push_back(.5);
-    return Value::object("FloatList", h->registry.std_collections().make_float_list(std::move(values)));
+    auto values = in->items;
+    values.push_back(.5);
+    return Value::object(
+        "FloatList",
+        h->registry.std_collections().make_float_list(std::move(values)));
   }
   if (n == "host_str_map") {
     auto *in = static_cast<dslvm::stdlib::StrMap *>(a[0].obj);
     auto *out = h->registry.std_collections().make_str_map();
-    for (const auto &item : in->entries()) out->set(item.first, item.second);
+    for (const auto &item : in->entries())
+      out->set(item.first, item.second);
     out->set("host", "yes");
     return Value::object("StrMap", out);
   }

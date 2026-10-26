@@ -6,6 +6,10 @@
 #include <locale>
 #include <sstream>
 #include <string>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 static std::string bytes(const char *path) {
   std::ifstream in(path, std::ios::binary);
   if (!in)
@@ -21,6 +25,9 @@ static int usage() {
   return 2;
 }
 int main(int argc, char **argv) {
+#ifdef _WIN32
+  _setmode(_fileno(stdout), _O_BINARY);
+#endif
   std::cout.imbue(std::locale::classic());
   sample::Host host;
   if (argc == 2 && std::string(argv[1]) == "--version") {

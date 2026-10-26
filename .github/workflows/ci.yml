@@ -46,5 +46,5 @@ jobs:
             chmod +x .ci-bin/python3
             echo "$PWD/.ci-bin" >> "$GITHUB_PATH"
           fi
-      - name: Build and run pinned 66-case suite
+      - name: Build and run pinned 77-case suite
         run: ./test.sh

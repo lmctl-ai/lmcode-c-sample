@@ -1,6 +1,6 @@
 {
   "repo": "lmctl-ai/lmcode-cpp",
-  "commit": "83634b2ab60b1837e4ec7b8adea3e65c43e8b48f",
+  "commit": "0ea7cb9eb5806ee7f62cd17bb01b8580ec373adf",
   "sha256": {
     "LICENSE": "949eb9b711d9b64ae472b87b94916e8427575a75d0d218f6c4cbccf8c48d46f3",
     "include/dslvm.hpp": "7ebae6118b7570cdf2e362269478b11e2547780874b693023a9f21baa7b6e2c9",
