@@ -4,7 +4,7 @@ import hashlib, json, shutil, subprocess, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
 
-def digest(paths): return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)}
+def digest(paths): return {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)}
 def sdk_files():
     paths=[]
     for folder in (ROOT/'include', ROOT/'std', ROOT/'stdlib'):
@@ -15,7 +15,7 @@ def check():
     if digest(sdk_files()) != lock['sha256']: raise SystemExit('SDK drift: restore pinned archive or sync a reviewed commit')
     suite=json.loads((ROOT/'suite.lock').read_text())
     files=[p for p in (ROOT/'sample-suite').rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc']
-    if {str(p.relative_to(ROOT/'sample-suite')):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)} != suite['sha256']: raise SystemExit('suite drift: restore canonical bytes')
+    if {p.relative_to(ROOT/'sample-suite').as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)} != suite['sha256']: raise SystemExit('suite drift: restore canonical bytes')
     print('PASS SDK and suite locks')
 def sync_sdk(source):
     commit=subprocess.check_output(['git','-C',str(source),'rev-parse','9a33f9bd139518f7ee02fd19d27c3b895c079c38'],text=True).strip()
