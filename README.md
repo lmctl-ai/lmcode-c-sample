@@ -1,57 +1,62 @@
-# lmcode C shop sample
+# Wrap a C library with lmcode-cpp
 
-This is the C reference host for the shared lmcode teaching corpus. Read
-`src/shop.h`, `src/shop.c`, and `src/main.cpp` first: the domain is pure C;
-the C++ file only loads bytecode, serializes protocol output, and owns no domain
-conversion logic.
+This sample keeps the shop library in C11 and embeds lmcode with a small C++17
+app. Start with [domain.h](src/domain.h) and [domain.c](src/domain.c): they know
+nothing about the VM. [bindings.cpp](src/bindings.cpp) converts SDK values and
+calls that library directly; [main.cpp](src/main.cpp) handles the CLI and results.
 
 ```sh
-make test
+./test.sh                         # locks, standalone C test, complete corpus
+make test-domain                  # C11 library only; no C++ or SDK linkage
+./build/lmcode-c-sample --dsl-schema --json
+./build/lmcode-c-sample --dsl sample-suite/bytecode/001-literals.dslb
 ```
 
-The host contract is the vendored `sample-suite/host.schema.json`: `Shop`,
-`Items`, `Ledger`, and `Money`, `Currency`, all overloads, void methods,
-operator callbacks, error cases, and the complete 171-function standard catalog.
-`sample-suite/sample.dsl.json` is the exact schema used for bytecode binding.
-The suite is pinned to SDK commit `e9a34f2b3280a8862f391dc18d5c45a7ef1605c5`;
-the pinned SDK runtime is vendored under `include/`, `stdlib/`, and `std/`.
+## Wrap a C library
 
-The C side is a standalone domain library in `src/domain.c/.h`: Money, Shop,
-Items and Ledger state, wrapping, allocation and error-safe mutation live there.
-`src/bindings.cpp` is the direct dslvm host binding; `src/main.cpp` only handles
-CLI discovery, bytecode loading, protocol serialization and VM execution.
-Standard collections stay in the SDK registry arena.
-
-Protocol commands are `--version`, `--dsl-schema [--json]`,
-`--dsl-signatures`, and `--dsl FILE`. Program output is one JSON result line;
-CLI/load/run/application errors use exit codes 2/3/4. The suite runs all 77
-canonical programs and diffs exact stdout and exit status.
+1. Define business structs and functions in `domain.h`; expose them to C++ with
+   `extern "C"`. Keep allocation, Money arithmetic, Shop totals and Ledger
+   mutation in `domain.c`. Its arena owns stable Money pointers until teardown.
+2. Describe those objects in [host.schema.json](sample-suite/host.schema.json).
+   The canonical merged [sample.dsl.json](sample-suite/sample.dsl.json) includes
+   all 171 standard signatures; the teaching host contributes 45 signatures.
+3. In `bindings.cpp`, register functions, context objects and overloaded methods
+   on `dslvm::Registry`. Call the C functions, translate nonzero error returns
+   into `dslvm::Error` on the C++ side (no exceptions cross the C boundary),
+   and return `dslvm::Value` objects. This is an application
+   binding, with no generic C wrapper around the VM.
+4. Keep the C domain alive throughout `Program::run`; destroy it afterward.
+   `main.cpp` loads bytecode with the exact schema and serializes the final ledger.
+5. Run the canonical corpus without regenerating its expected output in this port.
+   The [coverage matrix](sample-suite/README.md) documents the feature programs.
 
 ## Conversions
 
-| lmcode value | C representation | Boundary rule |
+| lmcode type | C library / C++ binding | Rule |
 |---|---|---|
-| int | `int64_t` | Two's-complement wrapping; never narrow to C `int`. |
-| float | `double` | Preserve binary64 NaN, infinities, signed zero and subnormals. |
-| bool | `int` | Only zero/one is interpreted as false/true. |
-| string | `const char *` + `size_t` | Raw bytes, including NUL/invalid UTF-8; never use `strlen`. |
-| enum | length-counted string | Preserve exact schema member spelling. |
-| object | schema type + `void *` | Opaque stable handle; typed null is distinct from void. |
-| std list/map | SDK registry-owned pointer | Bind through the SDK arena; pointers expire between VM runs. |
-| void | no C result | Callback returns `LMCODE_VOID`. |
+| int | `int64_t` | Wrap via unsigned arithmetic; never narrow to C `int`. |
+| float | `double` | Preserve binary64, signed zero, NaN, infinities and subnormals. Money rejects nonfinite/out-of-range prices. |
+| bool | `int` / SDK `bool` | Convert false/true to zero/one at a C boundary. |
+| string | `const char *` + `size_t` / `std::string` | Bytes, including NUL and invalid UTF-8; use explicit lengths. |
+| enum | SDK string | Preserve the declared member spelling (`USD`/`EUR`). |
+| object | C struct pointer / typed SDK handle | Domain owns stable pointers; typed null differs from void. |
+| list/map | SDK registry-owned collection | Conversion helpers copy inputs into new arena collections; never free SDK objects in C. |
+| void | no C result / `Value::none()` | Do not invent a null object for a void method. |
 
-Callback arguments are borrowed for the callback. Callback-returned strings and
-type names must remain valid through callback return; generic call results are
-borrowed until the next SDK call. Domain objects are owned by `SampleDomain`.
+SDK arguments are borrowed during callbacks; `Value::string` owns its returned
+bytes. `sample_ledger_note` copies bytes into the C domain. Standard collections
+expire between VM runs. Domain pointers remain valid until `sample_domain_destroy`.
 
-Adding a C host function means adding its schema entry and one descriptor in
-`sample_host_create`; no C++ domain code is needed. The canonical suite and
-expected outputs are never regenerated in this port. The v2 SDK supplies 171
-standard signatures; the teaching host contributes 45 host signatures.
+## Protocol and reproducibility
 
-Implementation map: `src/shop.h` defines the opaque-domain structs and ownership;
-`src/shop.c` registers all host signatures and dispatches C callbacks;
-`src/main.cpp` implements only CLI discovery, schema loading, VM invocation and
-JSON serialization; `src/bindings.hpp` is the direct C++ host binding; `scripts/sync.py`
-checks the immutable SDK/suite locks. `test.sh` runs lock verification, the
-native C11/C++17 build, protocol checks, and the exact corpus.
+Discovery supports `--version`, `--dsl-schema [--json]`, and `--dsl-signatures`.
+`--dsl FILE` emits program print bytes followed by one JSON result line. Exit
+codes are success 0, CLI/load 2, runtime 3, and application failure 4. Errors retain
+source line/column. Set `SAMPLE_TMP` for file programs; the suite sets an isolated
+directory automatically. File functions access native paths without a sandbox.
+
+`./test.sh` runs all 77 cases against exact stdout bytes and exit codes, including
+invalid bytecode/schema/handle imports. [sdk.lock](sdk.lock) and
+[suite.lock](suite.lock) identify the immutable SDK and canonical corpus snapshots;
+`scripts/sync.py check` verifies every vendored byte. Linux, macOS and Windows CI
+build the same C11 library plus C++17 app. No separate C SDK is required.

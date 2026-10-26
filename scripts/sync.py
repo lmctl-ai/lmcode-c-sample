@@ -18,8 +18,8 @@ def check():
     if {p.relative_to(ROOT/'sample-suite').as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)} != suite['sha256']: raise SystemExit('suite drift: restore canonical bytes')
     print('PASS SDK and suite locks')
 def sync_sdk(source):
-    commit=subprocess.check_output(['git','-C',str(source),'rev-parse','83634b2ab60b1837e4ec7b8adea3e65c43e8b48f'],text=True).strip()
-    if commit != '83634b2ab60b1837e4ec7b8adea3e65c43e8b48f': raise SystemExit('required SDK commit unavailable')
+    commit=subprocess.check_output(['git','-C',str(source),'rev-parse','0ea7cb9eb5806ee7f62cd17bb01b8580ec373adf'],text=True).strip()
+    if commit != '0ea7cb9eb5806ee7f62cd17bb01b8580ec373adf': raise SystemExit('required SDK commit unavailable')
     staging=ROOT/'sync-sdk.tmp'; shutil.rmtree(staging,ignore_errors=True); staging.mkdir()
     subprocess.run(['git','-C',str(source),'archive',commit,'include','std','stdlib','LICENSE'],check=True,stdout=open(staging/'archive.tar','wb'))
     shutil.unpack_archive(staging/'archive.tar',staging/'tree');

@@ -9,7 +9,7 @@ INCLUDES=-Isrc -Iinclude -Istdlib -I"$(BUILD)"
 all: $(BUILD)/lmcode-c-sample
 $(BUILD)/domain_test: tests/domain_test.c src/domain.c src/domain.h
 	mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -Isrc $^ -lm -o $@
+	$(CC) $(CFLAGS) -Isrc tests/domain_test.c src/domain.c -lm -o $@
 test-domain: $(BUILD)/domain_test
 	$(BUILD)/domain_test
 $(BUILD)/sample_schema.hpp: sample-suite/sample.dsl.json scripts/embed-schema.py
@@ -18,7 +18,7 @@ $(BUILD)/sample_schema.hpp: sample-suite/sample.dsl.json scripts/embed-schema.py
 $(BUILD)/domain.o: src/domain.c src/domain.h
 	mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-$(BUILD)/bindings.o: src/bindings.cpp src/bindings.hpp src/domain.h include/dslvm.hpp $(wildcard stdlib/*.hpp)
+$(BUILD)/bindings.o: src/bindings.cpp src/bindings.hpp src/domain.h include/dslvm.hpp $(wildcard stdlib/*.hpp) $(BUILD)/sample_schema.hpp
 	mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 $(BUILD)/main.o: src/main.cpp src/bindings.hpp src/domain.h include/dslvm.hpp $(BUILD)/sample_schema.hpp
