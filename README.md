@@ -28,11 +28,22 @@ Protocol commands are `--version`, `--dsl-schema [--json]`,
 CLI/load/run/application errors use exit codes 2/3/4. The suite runs all 66
 canonical programs and diffs exact stdout and exit status.
 
-Conversions: `int` is `int64_t` with two's-complement wrapping; `float` is
-binary64 including NaN, infinities, signed zero and subnormals; strings are raw
-bytes with explicit lengths; enums are exact string values; objects carry a
-schema type plus opaque pointer; void has no result. Null object handles remain
-typed and are checked by host callbacks.
+## Conversions
+
+| lmcode value | C representation | Boundary rule |
+|---|---|---|
+| int | `int64_t` | Two's-complement wrapping; never narrow to C `int`. |
+| float | `double` | Preserve binary64 NaN, infinities, signed zero and subnormals. |
+| bool | `int` | Only zero/one is interpreted as false/true. |
+| string | `const char *` + `size_t` | Raw bytes, including NUL/invalid UTF-8; never use `strlen`. |
+| enum | length-counted string | Preserve exact schema member spelling. |
+| object | schema type + `void *` | Opaque stable handle; typed null is distinct from void. |
+| std list/map | registry-owned opaque pointer | Use generic C registry calls; pointers expire between VM runs. |
+| void | no C result | Callback returns `LMCODE_VOID`. |
+
+Callback arguments are borrowed for the callback. Callback-returned strings and
+type names must remain valid through callback return; generic call results are
+borrowed until the next registry call. Domain objects are owned by `SampleHost`.
 
 Adding a C host function means adding its schema entry and one descriptor in
 `sample_host_create`; no C++ domain code is needed. The canonical suite and
