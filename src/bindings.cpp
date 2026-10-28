@@ -250,6 +250,10 @@ Host::Host() {
   addm("Ledger", "note", {}, "string");
   addm("Ledger", "reject", {"string"}, "void");
 }
+dslvm::Value Host::total_handle() {
+  dslvm::Args arguments;
+  return method(this, "Shop", "total", &domain.shop, arguments);
+}
 Host::~Host() { sample_domain_destroy(&domain); }
 dslvm::Context Host::context() {
   dslvm::Context c;

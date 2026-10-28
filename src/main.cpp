@@ -2,6 +2,7 @@
 #include "dslvm.hpp"
 #include "sample_schema.hpp"
 #include <fstream>
+#include <cstdio>
 #include <iostream>
 #include <locale>
 #include <sstream>
@@ -17,6 +18,14 @@ static std::string bytes(const char *path) {
   std::ostringstream out;
   out << in.rdbuf();
   return out.str();
+}
+static std::string value_text(const dslvm::Value &value) {
+  if (value.kind == dslvm::Value::INT) return std::to_string(value.i);
+  if (value.kind == dslvm::Value::FLOAT) {
+    char text[64]; std::snprintf(text, sizeof text, "%.15g", value.f); return text;
+  }
+  if (value.kind == dslvm::Value::BOOL) return value.b ? "true" : "false";
+  return value.s;
 }
 static int usage() {
   std::cout << "{\"ok\": false, \"phase\": \"cli\", \"code\": \"CLI_USAGE\", "
@@ -63,8 +72,25 @@ int main(int argc, char **argv) {
     return dslvm::report_error("load", dslvm::Error(e.code, m));
   }
   auto context = host.context();
+  size_t entries_called = 0;
   try {
     program.run(context, host.registry);
+    auto call_entry = [&](size_t index, dslvm::Value argument) {
+      auto result = program.call(index, context, host.registry, {std::move(argument)});
+      ++entries_called;
+      if (result.kind != dslvm::Value::VOID)
+        std::cout << "entry " << program.entries()[index].name << " = " << value_text(result) << '\n';
+    };
+    for (size_t i = 0; i < program.entries().size(); ++i) {
+      const auto &annotation = program.entries()[i].annotation;
+      if (annotation == "item") {
+        const auto &items = host.domain.shop.items;
+        for (size_t j = 0; j < items.count; ++j)
+          call_entry(i, dslvm::Value::object("Money", items.values[j]));
+      } else if (annotation == "total") {
+        call_entry(i, host.total_handle());
+      }
+    }
   } catch (const dslvm::Error &e) {
     return dslvm::report_error("run", e);
   }
@@ -77,5 +103,6 @@ int main(int argc, char **argv) {
   return dslvm::report_ok(
       "{\"balance\": " + std::to_string(host.domain.ledger.balance) +
       ", \"entries\": " + std::to_string(host.domain.ledger.entries) +
-      ", \"note\": " + dslvm::json_escape(note) + "}");
+      ", \"note\": " + dslvm::json_escape(note) + ", \"entries_called\": " +
+      std::to_string(entries_called) + "}");
 }

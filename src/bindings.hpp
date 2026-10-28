@@ -8,5 +8,6 @@ struct Host {
   Host();
   ~Host();
   dslvm::Context context();
+  dslvm::Value total_handle();
 };
 } // namespace sample

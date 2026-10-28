@@ -25,7 +25,7 @@ make test-domain                  # C11 library only; no C++ or SDK linkage
    into `dslvm::Error` on the C++ side (no exceptions cross the C boundary),
    and return `dslvm::Value` objects. This is an application
    binding, with no generic C wrapper around the VM.
-4. Keep the C domain alive throughout `Program::run`; destroy it afterward.
+4. Keep the C domain alive throughout the body and all rule calls; destroy it afterward.
    `main.cpp` loads bytecode with the exact schema and serializes the final ledger.
 5. Run the canonical corpus without regenerating its expected output in this port.
    The [coverage matrix](sample-suite/README.md) documents the feature programs.
@@ -51,11 +51,11 @@ expire between VM runs. Domain pointers remain valid until `sample_domain_destro
 
 Discovery supports `--version`, `--dsl-schema [--json]`, and `--dsl-signatures`.
 `--dsl FILE` emits program print bytes followed by one JSON result line. Exit
-codes are success 0, CLI/load 2, runtime 3, and application failure 4. Errors retain
+codes are success 0, CLI 2, load/runtime 3, and application failure 4. Errors retain
 source line/column. Set `SAMPLE_TMP` for file programs; the suite sets an isolated
 directory automatically. File functions access native paths without a sandbox.
 
-`./test.sh` runs all 91 cases against exact stdout bytes and exit codes, including
+`./test.sh` runs all 94 cases against exact stdout bytes and exit codes, including
 invalid bytecode/schema/handle imports. [sdk.lock](sdk.lock) and
 [suite.lock](suite.lock) identify the immutable SDK and canonical corpus snapshots;
 `scripts/sync.py check` verifies every vendored byte. Linux, macOS and Windows CI
@@ -63,18 +63,24 @@ build the same C11 library plus C++17 app. No separate C SDK is required.
 
 ## Refreshing the rule-method corpus
 
-The canonical suite is pinned to `lmcode-cpp` commit `aec9b09`. Program 067
-calls an `@PRICE_RULE` function implementing the schema SAM `Adjuster`; the
-shared negative compiler case rejects a mismatched signature. This metadata is
-compiler-only: the C library and C++ VM still execute DSLB v5. Schema bytes and
-all pinned programs move together. The SDK pin also includes std-v3 codecs and
-map snapshots used by the current canonical suite.
+The SDK and 94-case canonical suite pin lmcode-cpp main d608ba2 and require DSLB
+v6. Rules annotated item are called once per shop Money handle; total rules are
+called once with the existing Shop.total() implementation. Entries run after the
+body, in source order; other annotations are ignored. Non-void returns print
+entry NAME = VALUE. Entry failures remain run-phase errors, and application
+validation runs after dispatch.
+
+entries_called is the number of successful rule calls, separate from the ledger's
+entries field. The C domain and its stable arena pointers outlive the body and all
+entry calls. No rule knowledge or VM dependency was added to domain.c/domain.h.
 
 ```sh
 python3 scripts/sync.py sdk ../lmcode-cpp
 python3 scripts/sync.py suite ../lmcode-cpp
-LMSCRIPT_BIN=/path/to/rule-method-capable/lmscript ./test.sh
+LMSCRIPT_BIN=/path/to/v6/lmscript LMSCRIPT_MIN=0 ./test.sh
 ```
 
-Use an R47/R48-capable compiler for source reproduction; the manual test
-workflow requires a matching published compiler version input.
+Source reproduction needs a v6 rule-entry compiler, not the older published
+0.2.426 compiler. Use the supplied read-only mono lmscript build for development;
+[local verification notes](durable-memory/v6-rule-entries.md) record the exact
+path and observed revision. Expectations remain the committed reference bytes.
