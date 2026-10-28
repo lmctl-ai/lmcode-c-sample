@@ -76,5 +76,5 @@ python3 scripts/sync.py suite ../lmcode-cpp
 LMSCRIPT_BIN=/path/to/rule-method-capable/lmscript ./test.sh
 ```
 
-Use an R47/R48-capable compiler for source reproduction; the older published
-compiler default in CI must be overridden when a matching release is available.
+Use an R47/R48-capable compiler for source reproduction; the manual test
+workflow requires a matching published compiler version input.

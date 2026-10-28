@@ -3,15 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       compiler:
-        description: Published lmscript version
-        default: '0.2.420'
+        description: Published R47/R48-capable compiler version
+        required: true
         type: string
 permissions:
   contents: read
 jobs:
   test:
     env:
-      LMSCRIPT_VERSION: ${{ inputs.compiler || '0.2.420' }}
+      LMSCRIPT_VERSION: ${{ inputs.compiler }}
     strategy:
       fail-fast: false
       matrix:
