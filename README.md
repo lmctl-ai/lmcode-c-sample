@@ -19,7 +19,7 @@ make test-domain                  # C11 library only; no C++ or SDK linkage
    mutation in `domain.c`. Its arena owns stable Money pointers until teardown.
 2. Describe those objects in [host.schema.json](sample-suite/host.schema.json).
    The canonical merged [sample.dsl.json](sample-suite/sample.dsl.json) includes
-   all 171 standard signatures; the teaching host contributes 45 signatures.
+   all 181 standard signatures; the teaching host contributes 45 signatures.
 3. In `bindings.cpp`, register functions, context objects and overloaded methods
    on `dslvm::Registry`. Call the C functions, translate nonzero error returns
    into `dslvm::Error` on the C++ side (no exceptions cross the C boundary),
@@ -55,8 +55,26 @@ codes are success 0, CLI/load 2, runtime 3, and application failure 4. Errors re
 source line/column. Set `SAMPLE_TMP` for file programs; the suite sets an isolated
 directory automatically. File functions access native paths without a sandbox.
 
-`./test.sh` runs all 77 cases against exact stdout bytes and exit codes, including
+`./test.sh` runs all 91 cases against exact stdout bytes and exit codes, including
 invalid bytecode/schema/handle imports. [sdk.lock](sdk.lock) and
 [suite.lock](suite.lock) identify the immutable SDK and canonical corpus snapshots;
 `scripts/sync.py check` verifies every vendored byte. Linux, macOS and Windows CI
 build the same C11 library plus C++17 app. No separate C SDK is required.
+
+## Refreshing the rule-method corpus
+
+The canonical suite is pinned to `lmcode-cpp` commit `aec9b09`. Program 067
+calls an `@PRICE_RULE` function implementing the schema SAM `Adjuster`; the
+shared negative compiler case rejects a mismatched signature. This metadata is
+compiler-only: the C library and C++ VM still execute DSLB v5. Schema bytes and
+all pinned programs move together. The SDK pin also includes std-v3 codecs and
+map snapshots used by the current canonical suite.
+
+```sh
+python3 scripts/sync.py sdk ../lmcode-cpp
+python3 scripts/sync.py suite ../lmcode-cpp
+LMSCRIPT_BIN=/path/to/rule-method-capable/lmscript ./test.sh
+```
+
+Use an R47/R48-capable compiler for source reproduction; the older published
+compiler default in CI must be overridden when a matching release is available.
