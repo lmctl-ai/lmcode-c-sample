@@ -1,4 +1,4 @@
-// lmcode-cpp: the C++ runtime for lmscript `_dsl_` bytecode. Header-only, C++17, standard library only.
+// lmcode-cpp: the C++ runtime for lmscript `_lmcode_` bytecode. Header-only, C++17, standard library only.
 // Single source of truth: github.com/lmctl-ai/lmcode-cpp/include/dslvm.hpp (hosts vendor it by pinned sha256, see README).
 //
 // Public API (everything else in this header is an implementation detail):
@@ -46,7 +46,7 @@
 // the hidden end slot and a back displacement. WHILE_BEGIN marks a paired loop head, WHILE_TEST branches to its exit on false,
 // and LOOP_BACK returns only to that paired head. Int arithmetic is 64-bit two's complement with wraparound (no overflow trap);
 // division and remainder by zero are run-time errors. The language is defined by the lmscript compiler
-// (_dsl_ blocks, npm package @lmctl-ai/lmctl); this header implements the bytecode that compiler emits.
+// (_lmcode_ blocks, npm package @lmctl-ai/lmctl); this header implements the bytecode that compiler emits.
 //
 // Guarantees of load(): wrong magic, other version (including v3), schema-hash mismatch, truncation, trailing bytes, unknown
 // constant tags, undecodable instructions, out-of-range constants/locals/imports/context indices, jumps that do not land on an
@@ -504,6 +504,7 @@ class Program {
     for (uint16_t i = 0; i < nentries; ++i) {
       EntryRegion e;
       e.meta.name = cidx(r.u32(), "entry name");
+      for (const auto& prev : p.entry_meta_) if (prev.name == e.meta.name) throw Error("LOAD_BAD_BYTECODE", "duplicate entry name '" + e.meta.name + "'");
       e.meta.annotation = cidx(r.u32(), "entry annotation");
       e.meta.iface = cidx(r.u32(), "entry interface");
       // The interface text is canonical `interface I(T1, T2) -> R`; type names never contain commas or parens.
@@ -996,6 +997,7 @@ class Program {
       Reader q(code); q.seek(i.pc + 1); uint16_t slot = q.u16();
       for (auto& l : loops) if (slot == l.second.counter || slot == l.second.end)
         throw Error("LOAD_BAD_BYTECODE", "STORE_LOCAL at offset " + std::to_string(i.pc) + " writes a read-only range slot " + std::to_string(slot));
+      if (locals[slot].hidden) throw Error("LOAD_BAD_BYTECODE", "STORE_LOCAL at offset " + std::to_string(i.pc) + " writes compiler-owned loop local " + std::to_string(slot));
     }
     for (auto& i : insns) if (i.op == FOR_RANGE) {
       uint16_t counter = uint16_t(uint8_t(code[i.pc + 1]) << 8 | uint8_t(code[i.pc + 2]));

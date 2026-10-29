@@ -84,3 +84,39 @@ Source reproduction needs a v6 rule-entry compiler, not the older published
 0.2.426 compiler. Use the supplied read-only mono lmscript build for development;
 [local verification notes](durable-memory/v6-rule-entries.md) record the exact
 path and observed revision. Expectations remain the committed reference bytes.
+
+## Runnable annotated interface example
+
+[examples/rule-entries.lms](examples/rule-entries.lms) defines two `@item`
+functions and one `@total` function, each with `implements Adjuster`. The
+schema declares `Adjuster(Money) -> void`; the compiler checks the signature.
+The body prints first, then the host calls entries by annotation. `@never`
+demonstrates an entry that this host does not dispatch.
+
+```sh
+make
+lmscript examples/rule-entries.lms build/rule-entries.dslb
+build/lmcode-c-sample --dsl build/rule-entries.dslb
+```
+
+Use lmscript 0.2.444 (DSLB v6). The expected trace is pinned in
+[sample-suite/expected/068-rule-entries.out](sample-suite/expected/068-rule-entries.out).
+For a non-void interface and returned entry value, see
+[069-rule-value-entry.lms](sample-suite/programs/069-rule-value-entry.lms).
+
+## Automatic releases
+
+Every push to `main` builds and tests Linux x64/arm64, macOS x64/arm64,
+and Windows x64. All five jobs must pass the full suite, bytecode
+reproduction and the public annotated interface example before publication.
+Pull requests run the same checks without publishing.
+
+The release workflow pins lmscript 0.2.444 and publishes an immutable
+`v0.4.<workflow run number>` release, marking it latest. Executables report
+that same version; assets use the lmscript platform naming convention and
+include `SHA256SUMS`, license and notices. Failed tests prevent publication.
+A workflow rerun keeps an already published release unchanged.
+
+```sh
+lmscript install github:lmctl-ai/lmcode-c-sample@latest
+```

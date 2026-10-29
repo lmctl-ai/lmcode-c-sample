@@ -1,3 +1,4 @@
+VERSION ?= 0.4.0
 CC ?= cc
 CXX ?= c++
 CFLAGS ?= -std=c11 -O2 -Wall -Wextra -Werror
@@ -5,6 +6,7 @@ CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -Werror -pedantic
 BUILD ?= build
 SDK ?= .
 INCLUDES=-Isrc -Iinclude -Istdlib -I"$(BUILD)"
+INCLUDES += '-DSAMPLE_VERSION="$(VERSION)"'
 .PHONY: all test test-domain clean
 all: $(BUILD)/lmcode-c-sample
 $(BUILD)/domain_test: tests/domain_test.c src/domain.c src/domain.h

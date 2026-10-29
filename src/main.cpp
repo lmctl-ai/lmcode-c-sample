@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
   std::cout.imbue(std::locale::classic());
   sample::Host host;
   if (argc == 2 && std::string(argv[1]) == "--version") {
-    std::cout << "lmcode-c-sample 0.3.0\n";
+    std::cout << "lmcode-c-sample " << SAMPLE_VERSION << "\n";
     return 0;
   }
   if ((argc == 2 || (argc == 3 && std::string(argv[2]) == "--json")) &&
