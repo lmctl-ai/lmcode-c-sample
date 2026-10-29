@@ -10,7 +10,6 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 env:
-  LMSCRIPT_VERSION: '0.2.444'
   SAMPLE_VERSION: 0.4.${{ github.run_number }}
 jobs:
   build:
@@ -36,7 +35,7 @@ jobs:
           node-version: '24'
       - name: Compiler and native toolchain
         run: |
-          npm install --global "@lmctl-ai/lmctl@$LMSCRIPT_VERSION"
+          npm install -g @lmctl-ai/lmctl
           if [[ "$RUNNER_OS" == Windows ]]; then
             if ! command -v g++ >/dev/null || ! command -v make >/dev/null; then choco install -y mingw make; fi
             mkdir -p .ci-bin
@@ -52,7 +51,7 @@ jobs:
           elif [[ "$RUNNER_OS" == Linux ]]; then
             export CXXFLAGS='-std=c++17 -O2 -Wall -Wextra -Werror -pedantic -static-libstdc++ -static-libgcc'
           fi
-          ./test.sh
+          lmscript --no-preflight test.lms
           [[ "$(build/lmcode-c-sample --version | tr -d '\r')" == "lmcode-c-sample $SAMPLE_VERSION" ]]
           mkdir -p dist
           cp 'build/lmcode-c-sample${{ matrix.ext }}' 'dist/lmcode-c-sample-${{ matrix.label }}${{ matrix.ext }}'

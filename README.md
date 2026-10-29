@@ -111,7 +111,7 @@ and Windows x64. All five jobs must pass the full suite, bytecode
 reproduction and the public annotated interface example before publication.
 Pull requests run the same checks without publishing.
 
-The release workflow pins lmscript 0.2.444 and publishes an immutable
+The release workflow installs lmctl and lmscript from npm and publishes an immutable
 `v0.4.<workflow run number>` release, marking it latest. Executables report
 that same version; assets use the lmscript platform naming convention and
 include `SHA256SUMS`, license and notices. Failed tests prevent publication.
@@ -120,3 +120,23 @@ A workflow rerun keeps an already published release unchanged.
 ```sh
 lmscript install github:lmctl-ai/lmcode-c-sample@latest
 ```
+
+## Tests driven by lmscript
+
+```sh
+npm install -g @lmctl-ai/lmctl
+lmctl test.lms
+# Equivalent executable:
+lmscript test.lms
+```
+
+Both executables run `.lms` files; `lmctl` also accepts a URL ending in `.lms`.
+These repository tests require the checkout and run from its root because they
+use the pinned corpus and native sources. `./test.sh` is a convenience wrapper.
+CI uses `lmscript --no-preflight test.lms` to execute the tests once.
+
+The suite, protocol checks, signature coverage, compiler reproduction and
+negative controls are orchestrated by `.lms` files in `sample-suite/`. A small
+Node adapter preserves binary hashes and byte-exact subprocess output; it
+contains no test assertions. Python remains for SDK lock synchronization and
+build-time schema embedding, not test orchestration.
