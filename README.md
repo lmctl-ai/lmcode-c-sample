@@ -19,7 +19,7 @@ make test-domain                  # C11 library only; no C++ or SDK linkage
    mutation in `domain.c`. Its arena owns stable Money pointers until teardown.
 2. Describe those objects in [host.schema.json](sample-suite/host.schema.json).
    The canonical merged [sample.dsl.json](sample-suite/sample.dsl.json) includes
-   all 181 standard signatures; the teaching host contributes 45 signatures.
+   all 182 standard signatures; the teaching host contributes 45 signatures.
 3. In `bindings.cpp`, register functions, context objects and overloaded methods
    on `dslvm::Registry`. Call the C functions, translate nonzero error returns
    into `dslvm::Error` on the C++ side (no exceptions cross the C boundary),
@@ -55,7 +55,7 @@ codes are success 0, CLI 2, load/runtime 3, and application failure 4. Errors re
 source line/column. Set `SAMPLE_TMP` for file programs; the suite sets an isolated
 directory automatically. File functions access native paths without a sandbox.
 
-`./test.sh` runs all 94 cases against exact stdout bytes and exit codes, including
+`./test.sh` runs all 108 cases against exact stdout bytes and exit codes, including
 invalid bytecode/schema/handle imports. [sdk.lock](sdk.lock) and
 [suite.lock](suite.lock) identify the immutable SDK and canonical corpus snapshots;
 `scripts/sync.py check` verifies every vendored byte. Linux, macOS and Windows CI
@@ -63,7 +63,7 @@ build the same C11 library plus C++17 app. No separate C SDK is required.
 
 ## Refreshing the rule-method corpus
 
-The SDK and 94-case canonical suite pin lmcode-cpp main d608ba2 and require DSLB
+The SDK and 108-case canonical suite pin lmcode-cpp main 9235d01 and require DSLB
 v6. Rules annotated item are called once per shop Money handle; total rules are
 called once with the existing Shop.total() implementation. Entries run after the
 body, in source order; other annotations are ignored. Non-void returns print
@@ -140,3 +140,9 @@ negative controls are orchestrated by `.lms` files in `sample-suite/`. A small
 Node adapter preserves binary hashes and byte-exact subprocess output; it
 contains no test assertions. Python remains for SDK lock synchronization and
 build-time schema embedding, not test orchestration.
+
+## Text templates
+
+[examples/text-template.lms](examples/text-template.lms) renders ordinary text from a nested context with indexed lists, loops and boolean conditions. The standard `template_render(string, Json) -> string` function performs one pass; inserted values stay literal. Compile it with `lmscript --no-preflight examples/text-template.lms build/text-template.dslb`, then run the sample host with `--dsl build/text-template.dslb`.
+
+The lmscript-driven suite runs 108 cases, including template success/error cases. See the [portable template contract](https://github.com/lmctl-ai/lmcode-cpp/blob/main/std/template.md).
