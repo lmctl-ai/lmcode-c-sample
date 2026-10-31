@@ -99,7 +99,7 @@ lmscript examples/rule-entries.lms build/rule-entries.dslb
 build/lmcode-c-sample --dsl build/rule-entries.dslb
 ```
 
-Use a private mono main build at 0bc80277 or newer (DSLB v6). The expected trace is pinned in
+Use a private mono main build at 0bc80277 or newer using lmcode bytecode (DSLB v6). The expected trace is pinned in
 [sample-suite/expected/068-rule-entries.out](sample-suite/expected/068-rule-entries.out).
 For a non-void interface and returned entry value, see
 [069-rule-value-entry.lms](sample-suite/programs/069-rule-value-entry.lms).
@@ -154,3 +154,7 @@ terminal return frame. `$return` values are owned across the body and selected
 entries; unset means null. Body, entry and application failures produce no frame.
 The nine shared 360–368 return cases pin scalar/map/list/Json results, entry
 lifetime, ownership and error silence. See [host ownership notes](durable-memory/invocation-return.md).
+
+## Historical literal names
+
+The documentation calls the language lmcode. `--dsl`, `--dsl-schema` and `--dsl-signatures` are current host flag literals; `DSLB` is the bytecode magic and `DSLB v6` is the current format name; `.dslb` is the current bytecode filename extension; `dsl.schema` is the current schema JSON key. Other code-formatted API names, paths, manifest names and diagnostic text retain their current literal spellings.
