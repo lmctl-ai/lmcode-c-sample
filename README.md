@@ -95,8 +95,7 @@ demonstrates an entry that this host does not dispatch.
 
 ```sh
 make
-lmscript examples/rule-entries.lms build/rule-entries.dslb
-build/lmcode-c-sample --lmcode build/rule-entries.dslb
+lmscript examples/rule-entries.lms "$PWD/build/lmcode-c-sample"
 ```
 
 Use a private mono main build at 0bc80277 or newer using lmcode bytecode (DSLB v6). The expected trace is pinned in
@@ -143,9 +142,9 @@ build-time schema embedding, not test orchestration.
 
 ## Text templates
 
-[examples/text-template.lms](examples/text-template.lms) renders ordinary text from a nested context with indexed lists, loops and boolean conditions. The standard `template_render(string, Json) -> string` function performs one pass; inserted values stay literal. Compile it with `lmscript --no-preflight examples/text-template.lms build/text-template.dslb`, then run the sample host with `--lmcode build/text-template.dslb`.
+[examples/text-template.lms](examples/text-template.lms) renders ordinary text from a nested context with indexed lists, loops and boolean conditions. The standard `template_render(string, Json) -> string` function performs one pass; inserted values stay literal. Run it with `lmscript --no-preflight examples/text-template.lms "$PWD/build/lmcode-c-sample"`; the script constructs and executes its program.
 
-The lmscript-driven suite runs 108 cases, including template success/error cases. See the [portable template contract](https://github.com/lmctl-ai/lmcode-cpp/blob/main/std/template.md).
+The lmscript-driven suite runs 123 cases, including template success/error cases. See the [portable template contract](https://github.com/lmctl-ai/lmcode-cpp/blob/main/std/template.md).
 
 ## Invocation return protocol
 
