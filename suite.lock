@@ -1,6 +1,6 @@
 {
   "repo": "lmctl-ai/lmcode-cpp",
-  "commit": "b1e8d0417289cab2216d8c97d410a8ae643d4c84",
+  "commit": "ccd9eeb8911462ed4eb42edadb638e06c42bedf4",
   "sha256": {
     "CONTRACT.md": "c5ac93ed300aa3aadbe0f4e4cccd7f17695699d20ade161f6e9407625525ccdb",
     "README.md": "41308a9ae3bd7a97fd8839ae15d7e6e58ce1baa7bbfbf7de211194472224483b",
@@ -131,7 +131,7 @@
     "bytecode/368-return-unsafe-json.dslb": "e55445cd6802d6dadeb37de43920ce067ba786b38abd2774aa799be55d48c17b",
     "bytes.mjs": "c8e4e6eed42fad22beb2b622639ea28a9cffec7ee971851bca7a01f00b846489",
     "check-compile-errors.py": "b0fca6274e7e55d4bb119f2cec5ea05bc4e2c531b65a7ebf03d0586bc1ff69ec",
-    "check-invocations.py": "459997e44258b3cdb1e5a592bb76c8a4d2ad89c20441194861697ec671e9702a",
+    "check-invocations.py": "34f9c17aa7000e7de904ae3c9a626a8820963828c90742a4458db4c1c8cc6af9",
     "check-recompile.lms": "0fd5d0e5870fa26b952d2360ba2ff9cbe2432b3e914651ce82a45d71d2d99991",
     "check-recompile.py": "885b80cf801e8b6214916d7420798aa151f90344ca53da7388c88aa0f4910900",
     "compile-errors/assignment-type.lms": "46764cce15784299f94a1aea3b5b51f07b9a5573489953e8bd3ead01a9c0299d",
@@ -409,7 +409,7 @@
     "expected/368-return-unsafe-json.out": "01fc14ee2d75ebd0d80dd2a799335bcbdb4dc033ea59987c400b3149581845ba",
     "fake-host.mjs": "102d233f1c826f6208160eb904168887e1c2a713a1e59c7c25f58baf37ba8d57",
     "host.schema.json": "f02b2104bc83e8a6e3320f39895d56e80f6c212d4ce0f4ad90559de4e78b8fc3",
-    "invocations.lms": "9c7445e15ffa45f36f741c57ef66f6ba97bc0b10c55556431da393736d8f7103",
+    "invocations.lms": "2f385792b78eb4d198b65ed424b3a384926bebd343159db6e81660bd440b25b3",
     "legacy-std-v1.schema.json": "cfe31e8b34fdcc33a13e456e80fa9d05a5e6c8fed5b98988abd24ac8570e65e0",
     "manifest.json": "8e3ebb224ebb4ff9641e1c1c44a2e76a791e6fbe765aacec51165d755f213657",
     "mutate-invocations.py": "a372f59945edc906b4b6cc781d3bab20395e1221e4fb0aa4853cdbf7dec0f3ee",
