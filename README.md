@@ -158,3 +158,10 @@ lifetime, ownership and error silence. See [host ownership notes](durable-memory
 ## Historical literal names
 
 The documentation calls the language lmcode. `--lmcode`, `--lmcode-schema` and `--lmcode-signatures` are current host flag literals; `DSLB` is the bytecode magic and `DSLB v6` is the current format name; `.dslb` is the current bytecode filename extension; `dsl.schema` is the current schema JSON key. Other code-formatted API names, paths, manifest names and diagnostic text retain their current literal spellings.
+
+The amendment invocation protocol is adopted: repeated `--lmcode FILE` pairs share
+one shop/ledger, with independent sealed results emitted in add order. `--first`
+and `--last` role fragments can reorder dispatch. A tagged `host_summary` retains
+the shop result; one terminal success/failure envelope follows. Public examples
+construct programs and call `run_lmcode` with the executable as ARGV[0].
+See sample-suite/CONTRACT.md and sample-suite/check-invocations.py.

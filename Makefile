@@ -30,6 +30,11 @@ $(BUILD)/lmcode-c-sample: $(BUILD)/main.o $(BUILD)/domain.o $(BUILD)/bindings.o
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 test: all
 	$(MAKE) test-domain
+	python3 sample-suite/check-invocations.py "$(abspath $(BUILD)/lmcode-c-sample)"
 	bash sample-suite/run-suite.sh "$(abspath $(BUILD)/lmcode-c-sample)"
 clean:
 	rm -rf $(BUILD)
+
+ifeq ($(OS),Windows_NT)
+CXXFLAGS += -municode
+endif

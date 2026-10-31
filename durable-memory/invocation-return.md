@@ -1,15 +1,17 @@
-# Service-free invocation results (consensus slice 6)
+# Invocation envelopes (R6)
 
-The native CLI uses the canonical C++ ResultSink/frame API even though the shop
-model is C. Bind an owned sink before body execution, preserve it through all
-item/total callbacks, and emit only after successful shop validation and the
-existing diagnostic. Do not reset per entry or attach the sink to collection
-arenas. Entry HALT values and C shop/ledger state stay independent. Windows
-stdout is binary, and failed body/entry/app work produces no terminal frame.
+One shared Host/context/ledger per process invocation; repeated --lmcode pairs
+are one ordered collector. --first/--last role pairs reorder dispatch independently
+of add indices. Each slot owns a sink retained through body and selected entries;
+complete validates/seals. First failure retains its slot; final negative ledger is
+global app failure. Failures carry no result/parts. Preserve entry/HALT diagnostics.
+Success prints one tagged host_summary, then one compact terminal envelope and LF.
+No aliases, old unframed success, per-part frames, deadline or retry.
 
-Sources and expectations come from the exact committed canonical sample-suite;
-never record an oracle from this port. Sync with `python3 scripts/sync.py suite
-/path/to/own/lmcode-cpp` and the SDK mode, verify locks, and run ./test.sh with
-LMSCRIPT_BIN pointing to a private mono main build at 0bc80277 or newer. Wrappers
-use `_lmcode_ ... out=ARGV[0]` and no longer call savedsl. The pure-C domain test
-remains part of the gate.
+SDK and canonical suite are refreshed through own sync scripts. Compile fixtures
+with sample-suite/compile-fixture.mjs (compiler library only); public examples use
+run_lmcode, never name bytecode. The 123 old traces remain covered with refreshed
+envelopes. Real builder tests cover duplicate/reused/one-slot programs, reverse
+roles/shared ledger, entry/global failures and retained summaries. Compiled mutants
+in sample-suite/mutate-invocations.py kill lost summary/reset context/wrong slot;
+a real subprocess-per-file wrapper also fails.
