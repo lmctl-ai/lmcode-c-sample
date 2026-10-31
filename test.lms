@@ -18,8 +18,7 @@ step(concat(compiler_command(), ["--no-preflight", "sample-suite/run-suite.lms",
 step(concat(compiler_command(), ["--no-preflight", "sample-suite/check-recompile.lms"]));
 step(concat(compiler_command(), ["--no-preflight", "sample-suite/test-runner.lms"]));
 step(concat(compiler_command(), ["--no-preflight", "examples/rule-entries.lms", path_join(Directory, "build/lmcode-c-sample")]));
-step(["node", "sample-suite/compile-fixture.mjs", "sample-suite/programs/068-rule-entries.lms", path_join(Directory, "build/rule-entries.dslb")]);
-result = invoke(root, [path_join(Directory, "build/lmcode-c-sample")], ["--lmcode", path_join(Directory, "build/rule-entries.dslb")], {}, 30000);
+result = invoke(root, [path_join(Directory, "build/lmcode-c-sample")], ["--lmcode", path_join(root, "bytecode/068-rule-entries.dslb")], {}, 30000);
 expected = binary(root, {op:"hex", path:path_join(root, "expected/068-rule-entries.out")});
 assert(result.code == 0 && result.hex == expected && result.stderr_hex == "", "annotated interface example differs");
 println("PASS annotated interface example");
