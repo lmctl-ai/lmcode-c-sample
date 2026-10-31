@@ -18,7 +18,7 @@ make test-domain                  # C11 library only; no C++ or SDK linkage
    `extern "C"`. Keep allocation, Money arithmetic, Shop totals and Ledger
    mutation in `domain.c`. Its arena owns stable Money pointers until teardown.
 2. Describe those objects in [host.schema.json](sample-suite/host.schema.json).
-   The canonical merged [sample.dsl.json](sample-suite/sample.dsl.json) includes
+   The canonical merged [`sample.dsl.json`](sample-suite/sample.dsl.json) includes
    all 182 standard signatures; the teaching host contributes 45 signatures.
 3. In `bindings.cpp`, register functions, context objects and overloaded methods
    on `dslvm::Registry`. Call the C functions, translate nonzero error returns
