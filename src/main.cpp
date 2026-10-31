@@ -39,6 +39,10 @@ int main(int argc, char **argv) {
 #endif
   std::cout.imbue(std::locale::classic());
   sample::Host host;
+  // The result sink belongs to this complete invocation, outside the VM's
+  // per-region arenas. Rule entries share it with the body and each other.
+  dslvm::ResultSink result_sink;
+  host.registry.set_result_sink(&result_sink);
   if (argc == 2 && std::string(argv[1]) == "--version") {
     std::cout << "lmcode-c-sample " << SAMPLE_VERSION << "\n";
     return 0;
@@ -74,6 +78,7 @@ int main(int argc, char **argv) {
   auto context = host.context();
   size_t entries_called = 0;
   try {
+    result_sink.reset();
     program.run(context, host.registry);
     auto call_entry = [&](size_t index, dslvm::Value argument) {
       auto result = program.call(index, context, host.registry, {std::move(argument)});
@@ -100,9 +105,18 @@ int main(int argc, char **argv) {
       host.domain.ledger.note
           ? std::string(host.domain.ledger.note, host.domain.ledger.note_length)
           : std::string();
-  return dslvm::report_ok(
+  const int report = dslvm::report_ok(
       "{\"balance\": " + std::to_string(host.domain.ledger.balance) +
       ", \"entries\": " + std::to_string(host.domain.ledger.entries) +
       ", \"note\": " + dslvm::json_escape(note) + ", \"entries_called\": " +
       std::to_string(entries_called) + "}");
+  if (report != 0)
+    return report;
+  try {
+    dslvm::write_result_frame(std::cout, result_sink);
+  } catch (const std::exception &e) {
+    std::cerr << "return output: " << e.what() << '\n';
+    return 4;
+  }
+  return std::cout ? 0 : 4;
 }

@@ -99,7 +99,7 @@ lmscript examples/rule-entries.lms build/rule-entries.dslb
 build/lmcode-c-sample --dsl build/rule-entries.dslb
 ```
 
-Use lmscript 0.2.444 (DSLB v6). The expected trace is pinned in
+Use a private mono main build at 0bc80277 or newer (DSLB v6). The expected trace is pinned in
 [sample-suite/expected/068-rule-entries.out](sample-suite/expected/068-rule-entries.out).
 For a non-void interface and returned entry value, see
 [069-rule-value-entry.lms](sample-suite/programs/069-rule-value-entry.lms).
@@ -146,3 +146,11 @@ build-time schema embedding, not test orchestration.
 [examples/text-template.lms](examples/text-template.lms) renders ordinary text from a nested context with indexed lists, loops and boolean conditions. The standard `template_render(string, Json) -> string` function performs one pass; inserted values stay literal. Compile it with `lmscript --no-preflight examples/text-template.lms build/text-template.dslb`, then run the sample host with `--dsl build/text-template.dslb`.
 
 The lmscript-driven suite runs 108 cases, including template success/error cases. See the [portable template contract](https://github.com/lmctl-ai/lmcode-cpp/blob/main/std/template.md).
+
+## Invocation return protocol
+
+Successful execution keeps its shop diagnostic and appends one canonical C++ SDK
+terminal return frame. `$return` values are owned across the body and selected
+entries; unset means null. Body, entry and application failures produce no frame.
+The nine shared 360–368 return cases pin scalar/map/list/Json results, entry
+lifetime, ownership and error silence. See [host ownership notes](durable-memory/invocation-return.md).
