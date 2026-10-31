@@ -8,8 +8,8 @@ calls that library directly; [main.cpp](src/main.cpp) handles the CLI and result
 ```sh
 ./test.sh                         # locks, standalone C test, complete corpus
 make test-domain                  # C11 library only; no C++ or SDK linkage
-./build/lmcode-c-sample --dsl-schema --json
-./build/lmcode-c-sample --dsl sample-suite/bytecode/001-literals.dslb
+./build/lmcode-c-sample --lmcode-schema --json
+./build/lmcode-c-sample --lmcode sample-suite/bytecode/001-literals.dslb
 ```
 
 ## Wrap a C library
@@ -49,8 +49,8 @@ expire between VM runs. Domain pointers remain valid until `sample_domain_destro
 
 ## Protocol and reproducibility
 
-Discovery supports `--version`, `--dsl-schema [--json]`, and `--dsl-signatures`.
-`--dsl FILE` emits program print bytes followed by one JSON result line. Exit
+Discovery supports `--version`, `--lmcode-schema [--json]`, and `--lmcode-signatures`.
+`--lmcode FILE` emits program print bytes followed by one JSON result line. Exit
 codes are success 0, CLI 2, load/runtime 3, and application failure 4. Errors retain
 source line/column. Set `SAMPLE_TMP` for file programs; the suite sets an isolated
 directory automatically. File functions access native paths without a sandbox.
@@ -96,7 +96,7 @@ demonstrates an entry that this host does not dispatch.
 ```sh
 make
 lmscript examples/rule-entries.lms build/rule-entries.dslb
-build/lmcode-c-sample --dsl build/rule-entries.dslb
+build/lmcode-c-sample --lmcode build/rule-entries.dslb
 ```
 
 Use a private mono main build at 0bc80277 or newer using lmcode bytecode (DSLB v6). The expected trace is pinned in
@@ -143,7 +143,7 @@ build-time schema embedding, not test orchestration.
 
 ## Text templates
 
-[examples/text-template.lms](examples/text-template.lms) renders ordinary text from a nested context with indexed lists, loops and boolean conditions. The standard `template_render(string, Json) -> string` function performs one pass; inserted values stay literal. Compile it with `lmscript --no-preflight examples/text-template.lms build/text-template.dslb`, then run the sample host with `--dsl build/text-template.dslb`.
+[examples/text-template.lms](examples/text-template.lms) renders ordinary text from a nested context with indexed lists, loops and boolean conditions. The standard `template_render(string, Json) -> string` function performs one pass; inserted values stay literal. Compile it with `lmscript --no-preflight examples/text-template.lms build/text-template.dslb`, then run the sample host with `--lmcode build/text-template.dslb`.
 
 The lmscript-driven suite runs 108 cases, including template success/error cases. See the [portable template contract](https://github.com/lmctl-ai/lmcode-cpp/blob/main/std/template.md).
 
@@ -157,4 +157,4 @@ lifetime, ownership and error silence. See [host ownership notes](durable-memory
 
 ## Historical literal names
 
-The documentation calls the language lmcode. `--dsl`, `--dsl-schema` and `--dsl-signatures` are current host flag literals; `DSLB` is the bytecode magic and `DSLB v6` is the current format name; `.dslb` is the current bytecode filename extension; `dsl.schema` is the current schema JSON key. Other code-formatted API names, paths, manifest names and diagnostic text retain their current literal spellings.
+The documentation calls the language lmcode. `--lmcode`, `--lmcode-schema` and `--lmcode-signatures` are current host flag literals; `DSLB` is the bytecode magic and `DSLB v6` is the current format name; `.dslb` is the current bytecode filename extension; `dsl.schema` is the current schema JSON key. Other code-formatted API names, paths, manifest names and diagnostic text retain their current literal spellings.

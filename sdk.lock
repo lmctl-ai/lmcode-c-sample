@@ -1,10 +1,10 @@
 {
   "repo": "lmctl-ai/lmcode-cpp",
-  "commit": "aaa9088a542d43daf81aefb9b024fbb971825f3f",
+  "commit": "20325f7a13cbb8470af88ae3448bf0e04d40e507",
   "sha256": {
     "LICENSE": "949eb9b711d9b64ae472b87b94916e8427575a75d0d218f6c4cbccf8c48d46f3",
-    "include/dslvm.hpp": "1e4fcd857da741bfee66ce5efec2746c7ec7a24f2765c7a1968b99530df06afb",
-    "std/README.md": "0a6c7afd9d1f74ef73d48990da7a4f8056da0ef00575da077d0f583a874516a1",
+    "include/dslvm.hpp": "53b7ccf50dc4899d955a5ab4ec9881e4be04d36eb04de2622da2c7ff98c78791",
+    "std/README.md": "4f18e983bf9f8d483a6f9fbe8ba6ab993f660b1f3dccf5b09b02bc9e0c4141d6",
     "std/lmcode-std.docs.json": "8d83793d16f2850e6c2371410e0c4e7ea03e4ee318adf5e64d397c78f89f7302",
     "std/lmcode-std.schema.json": "1defd1be67bf11cf1780f7d890059cd2ac6fd506a7b7fa578e31b5ef124aa221",
     "std/std.lock": "aa363c1048d0349902b2cabdf83e43ebbcda9b8eefa36dc8ecb7a2b779a32118",

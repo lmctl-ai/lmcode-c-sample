@@ -29,8 +29,8 @@ static std::string value_text(const dslvm::Value &value) {
 }
 static int usage() {
   std::cout << "{\"ok\": false, \"phase\": \"cli\", \"code\": \"CLI_USAGE\", "
-               "\"message\": \"usage: --version | --dsl-schema [--json] | "
-               "--dsl-signatures | --dsl FILE\"}\n";
+               "\"message\": \"usage: --version | --lmcode-schema [--json] | "
+               "--lmcode-signatures | --lmcode FILE\"}\n";
   return 2;
 }
 int main(int argc, char **argv) {
@@ -48,16 +48,16 @@ int main(int argc, char **argv) {
     return 0;
   }
   if ((argc == 2 || (argc == 3 && std::string(argv[2]) == "--json")) &&
-      std::string(argv[1]) == "--dsl-schema") {
+      std::string(argv[1]) == "--lmcode-schema") {
     std::cout.write(sample::schema, sizeof(sample::schema) - 1);
     return 0;
   }
-  if (argc == 2 && std::string(argv[1]) == "--dsl-signatures") {
+  if (argc == 2 && std::string(argv[1]) == "--lmcode-signatures") {
     for (const auto &s : host.registry.signatures())
       std::cout << s << '\n';
     return 0;
   }
-  if (argc != 3 || std::string(argv[1]) != "--dsl")
+  if (argc != 3 || std::string(argv[1]) != "--lmcode")
     return usage();
   std::string bytecode;
   try {
