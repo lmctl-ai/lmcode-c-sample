@@ -21,18 +21,18 @@ _setmode(_fileno(stdout),_O_BINARY);
 #endif
 using namespace dslvm;
 try{
- sample::Host host;
  if(argc==2&&std::string(argv[1])=="--version"){std::cout<<"lmcode-c-sample "<<SAMPLE_VERSION<<"\n";return 0;}
  if((argc==2||(argc==3&&std::string(argv[2])=="--json"))&&std::string(argv[1])=="--lmcode-schema"){std::cout.write(sample::schema,sizeof(sample::schema)-1);return 0;}
- if(argc==2&&std::string(argv[1])=="--lmcode-signatures"){for(const auto& s:host.registry.signatures())std::cout<<s<<'\n';return 0;}
+ if(argc==2&&std::string(argv[1])=="--lmcode-signatures"){sample::Host host;for(const auto& s:host.registry.signatures())std::cout<<s<<'\n';return 0;}
  std::vector<std::string> files;std::vector<int> priorities;
  for(int i=1;i<argc;i+=2){std::string flag=argv[i];if(i+1>=argc||(flag!="--lmcode"&&flag!="--first"&&flag!="--last"))return usage();files.emplace_back(argv[i+1]);priorities.push_back(flag=="--first"?0:flag=="--last"?2:1);}
  if(files.empty())return usage();
  auto results=InvocationResults::from_command(files);
+ sample::Host host;
  std::vector<size_t> execution;for(size_t i=0;i<files.size();++i)execution.push_back(i);
  std::stable_sort(execution.begin(),execution.end(),[&](size_t a,size_t b){return priorities[a]<priorities[b];});
  const std::string schema(sample::schema,sizeof(sample::schema)-1);const auto contract=ResultContract::from_schema(schema);
- auto context=host.context();size_t entries_called=0;
+ auto context=host.context();context.set_dry(results.dry());size_t entries_called=0;
  bool failed=false;
  for(size_t position:execution){const auto& part=results.registrations()[position];std::string phase="load";
   try{

@@ -30,6 +30,9 @@ static dslvm::Value fn(Host *h, const std::string &n, dslvm::Args &a) {
   if (n == "fee")
     return Value::integer(sample_wrap_add(a[0].i, 5));
   if (n == "sample_tmp") {
+#ifdef H6_TEST_COUNTERS
+    ++h->sample_tmp_calls;
+#endif
     const char *p = getenv("SAMPLE_TMP");
     if (!p || !*p)
       throw dslvm::Error("RUN_HOST", "SAMPLE_TMP is required");
@@ -206,7 +209,8 @@ Host::Host() {
   addf("money", {"int"}, "Money");
   addf("money", {"float"}, "Money");
   addf("fee", {"int"}, "int");
-  addf("sample_tmp", {}, "string");
+  auto sample_tmp = [this](Args &a) { return fn(this, "sample_tmp", a); };
+  registry.function("sample_tmp", {}, "string", sample_tmp, dslvm::dry(sample_tmp));
   for (auto x : std::vector<std::pair<
            const char *, std::pair<std::vector<std::string>, const char *>>>{
            {"host_int", {{"int"}, "int"}},

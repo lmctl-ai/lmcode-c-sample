@@ -15,3 +15,10 @@ envelopes. Real builder tests cover duplicate/reused/one-slot programs, reverse
 roles/shared ledger, entry/global failures and retained summaries. Compiled mutants
 in sample-suite/mutate-invocations.py kill lost summary/reset context/wrong slot;
 a real subprocess-per-file wrapper also fails.
+
+H6 dry adoption: the version-1 private manifest requires a boolean `dry`, which
+the CLI resolves before constructing Host or initializing the C domain. It
+propagates this mode through Context; absent metadata remains real. `sample_tmp`
+uses a safe dry read slot, while SDK file writes remain no-op dummies.
+`make test-dry-adoption` checks the offline sentinel, one preview call, dry
+marker and unchanged real writes.

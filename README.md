@@ -55,6 +55,13 @@ codes are success 0, CLI 2, load/runtime 3, and application failure 4. Errors re
 source line/column. Set `SAMPLE_TMP` for file programs; the suite sets an isolated
 directory automatically. File functions access native paths without a sandbox.
 
+Version-1 invocation metadata requires a boolean `dry`. The CLI validates the
+manifest before constructing `Host` or initializing the C domain, then copies the
+collector mode into `Context`. `sample_tmp` opts into the safe environment read;
+standard file writes retain the SDK's skip-and-dummy policy. `make test-dry-adoption`
+checks the file sentinel, exactly one `sample_tmp` preview, the dry marker, and
+unchanged real file behavior.
+
 `./test.sh` runs all 108 cases against exact stdout bytes and exit codes, including
 invalid bytecode/schema/handle imports. [sdk.lock](sdk.lock) and
 [suite.lock](suite.lock) identify the immutable SDK and canonical corpus snapshots;

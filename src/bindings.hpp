@@ -5,6 +5,9 @@ namespace sample {
 struct Host {
   dslvm::Registry registry;
   SampleDomain domain;
+#ifdef H6_TEST_COUNTERS
+  size_t sample_tmp_calls = 0;
+#endif
   Host();
   ~Host();
   dslvm::Context context();

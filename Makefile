@@ -28,7 +28,13 @@ $(BUILD)/main.o: src/main.cpp src/bindings.hpp src/domain.h include/dslvm.hpp $(
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 $(BUILD)/lmcode-c-sample: $(BUILD)/main.o $(BUILD)/domain.o $(BUILD)/bindings.o
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
-test: all
+$(BUILD)/dry-adoption-test: tests/dry-adoption.cpp src/bindings.cpp src/bindings.hpp $(BUILD)/domain.o $(BUILD)/sample_schema.hpp
+	$(CXX) $(CXXFLAGS) -DH6_TEST_COUNTERS $(INCLUDES) tests/dry-adoption.cpp src/bindings.cpp $(BUILD)/domain.o -lm -o $@
+test-dry-adoption: $(BUILD)/dry-adoption-test $(BUILD)/lmcode-c-sample
+	$(BUILD)/dry-adoption-test "$(abspath sample-suite/bytecode/024-file-functions.dslb)"
+	python3 tests/check-dry-adoption.py "$(abspath $(BUILD)/lmcode-c-sample)"
+test: all test-dry-adoption
+	python3 scripts/sync.py check
 	$(MAKE) test-domain
 	python3 sample-suite/check-invocations.py "$(abspath $(BUILD)/lmcode-c-sample)"
 	bash sample-suite/run-suite.sh "$(abspath $(BUILD)/lmcode-c-sample)"
