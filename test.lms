@@ -11,6 +11,7 @@ python = "python3";
 if (env("RUNNER_OS") == "Windows") { python = "python"; }
 step([python, "-B", "scripts/sync.py", "check"]);
 step(["make", "all"]);
+step([python, "-B", "sample-suite/test_return_protocol.py"]);
 step(["make", "test-domain"]);
 step(concat(compiler_command(), ["--no-preflight", "sample-suite/audit.lms", "--std", "std/lmcode-std.schema.json"]));
 step(concat(compiler_command(), ["--no-preflight", "sample-suite/run-suite.lms", path_join(Directory, "build/lmcode-c-sample")]));

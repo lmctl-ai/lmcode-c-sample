@@ -1,6 +1,6 @@
 {
   "repo": "lmctl-ai/lmcode-cpp",
-  "commit": "fe09962d076f7dbc729de02311b8553b03efa87b",
+  "commit": "6ee3d62ea9b480aa6f42a592055233959f7f6162",
   "sha256": {
     "CONTRACT.md": "4fceedd8a346ff36c03b1acc6b519148c01cf9ee8469735e4bd819f385fb178b",
     "README.md": "2802102ae02aa27fa48082c65a179fa9caf4acb905c472bdedfaf1d81e1ab4bc",
@@ -543,6 +543,7 @@
     "test-runner.lms": "eb7becef06f195d7abf9a81d93476c09f39741a7ad381a16352829159c0bdeb5",
     "test_catalog_epoch.py": "d6f031fe0f9c0b6f3a38b1f879d063c2ced70240ff9e1a6566cb7838cdf27435",
     "test_compiler_features.py": "9772e4bd7cef4f72643d6e3b18528566d4213f4b74ad7d3159334b4772b330f1",
+    "test_return_protocol.py": "75e5bc0cb85522c7efadf2f61988d807cfe26a42cb3aad9495c69130f6ad494e",
     "test_runner.py": "43178edfaf7d095e6ee57c9c23c7215934acdfe61bd60a83e7bb2648069196f3"
   }
 }
